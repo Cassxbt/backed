@@ -1,14 +1,47 @@
 import Link from "next/link";
 import { CompositionChart, Legend } from "@/components/composition-chart";
 import { CoverPlot } from "@/components/cover-plot";
+import { ExchangeCard } from "@/components/exchange-card";
+import { ExchangeCheck } from "@/components/exchange-check";
 import { ExchangesTable } from "@/components/exchanges-table";
-import { flaggedUsd, snapshot, summary } from "@/lib/data";
-import { usd } from "@/lib/format";
+import { Eyebrow, Section } from "@/components/section";
+import { THIN_MARKET_PAIRS } from "@/lib/checks";
+import { callCounts, flaggedUsd, getExchange, refusals, snapshot, summary, toCard } from "@/lib/data";
+import { num, usd, utc } from "@/lib/format";
+
+const PICKS = ["mexc", "weex", "binance", "kraken", "lbank"];
+
+const checks = [
+  {
+    n: "01",
+    title: "Unverified supply",
+    rule: "circulating_supply = 0",
+    body: "CoinMarketCap withholds a circulating supply when it has not verified it. The reserve still prices those tokens in full. The whole holding is flagged.",
+  },
+  {
+    n: "02",
+    title: "Above circulating supply",
+    rule: "balance > circulating_supply",
+    body: "Customers can only deposit tokens that circulate. Any amount above the whole circulating supply cannot all belong to them. Only that amount is flagged.",
+  },
+  {
+    n: "03",
+    title: "Thin market",
+    rule: `num_market_pairs <= ${THIN_MARKET_PAIRS}`,
+    body: "A reserve value is balance times price. When a token trades on two pairs or fewer, that price comes from a very small market. The whole holding is flagged.",
+  },
+  {
+    n: "04",
+    title: "Open interest against reserves",
+    rule: "open_interest_usd ÷ reserves",
+    body: "Futures positions are not debts, so nothing is subtracted. The ratio shows how much trading exposure sits on top of the reserves the exchange discloses.",
+  },
+];
 
 export default function Home() {
   const s = summary();
   const xs = snapshot.exchanges;
-  const noWalletsAudited = snapshot.noWallets.filter((e) => e.porAuditStatus === 1).length;
+  const hero = getExchange("lbank") ?? xs[0];
 
   const coverRows = xs
     .filter((e) => e.cover != null)
@@ -46,97 +79,305 @@ export default function Home() {
     audited: e.porAuditStatus === 1,
   }));
 
+  const flag = hero.holdings.filter((h) => h.flag).sort((a, b) => b.flaggedUsd - a.flaggedUsd)[0] ?? hero.holdings[0];
+  const flagToken = snapshot.tokens[String(flag.cryptoId)];
+  const flagRow = flag.rows?.[0];
+  const refused = refusals();
+
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6">
-      <section className="py-12 sm:py-16">
-        <p className="text-sm text-muted-foreground">Proof-of-reserves, checked with CoinMarketCap data</p>
-        <h1 className="mt-3 max-w-3xl text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-          CoinMarketCap shows how much an exchange holds. Backed shows what it is made of.
-        </h1>
-        <p className="mt-4 max-w-2xl text-pretty text-muted-foreground">
-          {s.exchanges} exchanges publish wallet-level reserves through the CoinMarketCap API. Backed runs four checks on
-          each one, using only CoinMarketCap&apos;s own fields, and marks the part of each reported total that is not
-          backed by verified, traded, circulating supply.{" "}
-          <Link href="/method" className="text-foreground underline underline-offset-4">
-            How the checks work
-          </Link>
-        </p>
-
-        <dl className="mt-10 grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3">
-          <Stat label="Reported reserves" value={usd(s.reported)} note={`across ${s.exchanges} exchanges`} />
-          <Stat
-            label="Flagged by the checks"
-            value={usd(s.flagged)}
-            note={`${s.flaggedExchanges} exchanges have 5% or more flagged`}
-          />
-          <Stat
-            label="Open interest above reserves"
-            value={`${s.overOne.count} of ${s.withCover}`}
-            note={`${usd(s.overOne.openInterest)} of open interest on ${usd(s.overOne.reserves)} of reserves`}
-          />
-        </dl>
-      </section>
-
-      <section className="border-t py-12">
-        <SectionHead
-          title="Open interest against disclosed reserves"
-          body={`Open interest is the value of open futures positions on an exchange. It is not a debt, but it is trading exposure that sits on top of the reserves. ${s.overTen.count} exchanges carry more than ten times their disclosed reserves, ${usd(s.overTen.openInterest)} on ${usd(s.overTen.reserves)}. ${s.overOne.withoutLiquidations} of the ${s.overOne.count} exchanges above 1× do not report liquidations to CoinMarketCap.`}
-        />
-        <div className="mt-8">
-          <CoverPlot rows={coverRows} />
+      <section className="grid gap-12 pb-16 pt-14 sm:pt-20 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center lg:gap-16">
+        <div>
+          <Eyebrow>Build with CMC · Data and Visualisation</Eyebrow>
+          <h1 className="mt-5 font-display text-5xl leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-7xl">
+            CoinMarketCap shows how much an exchange holds. Backed shows what it is made of.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
+            {s.exchanges} exchanges publish their reserve wallets through the CoinMarketCap API. Backed checks every
+            holding against CoinMarketCap&apos;s own supply, market and derivatives data, and marks what the headline
+            number does not support.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="#check"
+              className="inline-flex h-11 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-90"
+            >
+              Check an exchange
+            </Link>
+            <Link
+              href="#proof"
+              className="inline-flex h-11 items-center rounded-full border px-5 text-sm font-medium transition-colors hover:border-foreground/40"
+            >
+              See the proof
+            </Link>
+          </div>
+          <dl className="mt-10 grid max-w-xl grid-cols-2 gap-x-6 gap-y-4 border-t pt-6 sm:grid-cols-4">
+            <HeroStat label="Exchanges" value={String(s.exchanges)} />
+            <HeroStat label="Reported" value={usd(s.reported)} />
+            <HeroStat label="Flagged" value={usd(s.flagged)} />
+            <HeroStat label="API calls" value={String(snapshot.calls.length)} />
+          </dl>
+        </div>
+        <div>
+          <ExchangeCard e={toCard(hero)} />
+          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+            Real result from the snapshot of {utc(snapshot.generatedAt)}
+          </p>
         </div>
       </section>
 
-      <section className="border-t py-12">
-        <SectionHead
-          title="Where reported reserves are not backed"
-          body={`Exchanges with at least 1% of reported reserves flagged. The other ${xs.length - flaggedRows.length} exchanges are 99% or more backed on these checks.`}
-        />
-        <div className="mt-6">
-          <Legend rows={flaggedRows} />
-        </div>
+      <Section
+        eyebrow="The problem"
+        title="A reserve total is a sum of prices. Nobody checks what is being priced."
+        lead={
+          <p>
+            An exchange&apos;s reserve figure is every wallet balance multiplied by a price. It counts tokens whose supply
+            no one has verified, tokens held in amounts larger than the market, and tokens that barely trade, all at full
+            value. In 2022, FTX&apos;s balance sheet leaned on its own token, marked at a price no market could absorb.
+          </p>
+        }
+        aside={
+          <div className="grid gap-px self-end overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
+            <Fact
+              value={`${usd(hero.unverifiedUsd)} of ${usd(hero.reportedUsd)}`}
+              body={`of ${hero.name}'s reported reserves are tokens CoinMarketCap has not verified.`}
+            />
+            <Fact
+              value={`${s.overOne.count} of ${s.withCover}`}
+              body="exchanges carry more futures open interest than the reserves they disclose."
+            />
+          </div>
+        }
+      />
+
+      <Section
+        id="how"
+        eyebrow="How it works"
+        title="Four checks. Only CoinMarketCap fields. No weights."
+        lead={
+          <p>
+            Every exchange is measured by the same rules. Backed value is the reported total minus the first three checks.
+            A holding gets at most one flag, so nothing is counted twice.{" "}
+            <Link href="/method" className="text-foreground underline underline-offset-4">
+              Full method
+            </Link>
+          </p>
+        }
+      >
+        <ol className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-4">
+          {checks.map((c) => (
+            <li key={c.n} className="flex flex-col bg-card p-6">
+              <span className="font-mono text-xs text-muted-foreground">{c.n}</span>
+              <h3 className="mt-6 text-lg font-medium tracking-tight">{c.title}</h3>
+              <p className="mt-2 text-sm text-pretty text-muted-foreground">{c.body}</p>
+              <code className="mt-auto pt-6 font-mono text-[11px] text-muted-foreground">{c.rule}</code>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      <Section
+        id="findings"
+        eyebrow="Findings"
+        title="Open interest far above disclosed reserves."
+        lead={
+          <p>
+            {s.overTen.count} exchanges carry more than ten times their disclosed reserves in open futures positions,{" "}
+            {usd(s.overTen.openInterest)} on {usd(s.overTen.reserves)}. {s.overOne.withoutLiquidations} of the{" "}
+            {s.overOne.count} exchanges above 1× do not report liquidations to CoinMarketCap. The dark line marks 1×.
+          </p>
+        }
+      >
+        <CoverPlot rows={coverRows} />
+      </Section>
+
+      <Section
+        eyebrow="Findings"
+        title="Where the reported number is not backed."
+        lead={
+          <p>
+            {flaggedRows.length} exchanges have at least 1% of reported reserves flagged. The other{" "}
+            {xs.length - flaggedRows.length} are 99% or more backed on these checks, including the largest.
+          </p>
+        }
+      >
+        <Legend rows={flaggedRows} />
         <div className="mt-4">
           <CompositionChart rows={flaggedRows} />
         </div>
-      </section>
+      </Section>
 
-      {snapshot.noWallets.length > 0 && (
-        <section className="border-t py-12">
-          <SectionHead
-            title="Reporting status without wallets"
-            body={`${snapshot.noWallets.length} more exchanges are marked as publishing proof-of-reserves on CoinMarketCap, but the API returns no wallets for them, so they cannot be checked. They include all ${noWalletsAudited} exchanges that CoinMarketCap marks as audited.`}
-          />
-          <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
-            {snapshot.noWallets.map((e) => e.name + (e.porAuditStatus === 1 ? " (audited)" : "")).join(", ")}
+      <Section
+        eyebrow="Why CoinMarketCap"
+        title="Without CoinMarketCap, there is no Backed."
+        lead={
+          <p>
+            Backed has no data of its own. Wallet-level reserves, verified supply next to self-reported supply, and open
+            interest per exchange come from one CoinMarketCap key. Remove the API and there is nothing to check: no wallet
+            list, no supply to compare against, no exposure to weigh.
           </p>
-        </section>
-      )}
+        }
+        aside={
+          <div className="self-end overflow-x-auto rounded-xl border bg-card">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="px-4 py-3 font-medium">Needed for</th>
+                  <th className="px-4 py-3 font-medium">CoinMarketCap source</th>
+                </tr>
+              </thead>
+              <tbody className="[&_td]:px-4 [&_td]:py-3 [&_tr]:border-b [&_tr:last-child]:border-0">
+                {sources.map(([need, source]) => (
+                  <tr key={need}>
+                    <td>{need}</td>
+                    <td className="font-mono text-xs">{source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        }
+      />
 
-      <section id="exchanges" className="scroll-mt-4 border-t py-12">
-        <SectionHead title="All exchanges" body="Every exchange with proof-of-reserves data in the CoinMarketCap API." />
-        <div className="mt-6">
-          <ExchangesTable rows={tableRows} />
+      <Section
+        id="check"
+        eyebrow="Try it"
+        title="Check an exchange."
+        lead={
+          <p>
+            Pick an exchange you use. For the {refused.length} exchanges CoinMarketCap lists as publishing reserves but
+            returns no wallets for, Backed refuses to show a number.
+          </p>
+        }
+      >
+        <ExchangeCheck scored={xs.map(toCard)} refused={refused} picks={PICKS} />
+      </Section>
+
+      <Section
+        id="proof"
+        eyebrow="Proof"
+        title="Every number re-runs against the live API."
+        lead={
+          <p>
+            One snapshot is {snapshot.calls.length} calls and {snapshot.credits} credits on the free Basic plan, so anyone
+            can repeat it. Every exchange page lists the exact calls behind it.
+          </p>
+        }
+      >
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="border-b px-4 py-3 font-mono text-[11px] text-muted-foreground">
+              {hero.name}&apos;s largest flag: the fields Backed reads
+            </div>
+            <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed">
+              {`$ curl -H "X-CMC_PRO_API_KEY: $KEY" \\
+  "https://pro-api.coinmarketcap.com/v1/exchange/assets?id=${hero.id}"
+
+{ "wallet_address": "${flagRow?.address ?? ""}",
+  "platform": { "symbol": "${flagRow?.chain ?? ""}" },
+  "currency": { "symbol": "${flag.symbol}", "crypto_id": ${flag.cryptoId} },
+  "balance": ${num(flagRow?.balance).replaceAll(",", "")} }
+
+$ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
+
+{ "circulating_supply": ${flagToken?.circulatingSupply ?? "null"},
+  "self_reported_circulating_supply": ${flagToken?.selfReportedCirculatingSupply ?? "null"},
+  "num_market_pairs": ${flagToken?.marketPairs ?? "null"} }`}
+            </pre>
+          </div>
+          <div className="grid content-start gap-px overflow-hidden rounded-xl border bg-border">
+            {callCounts().map((c) => (
+              <div key={c.path} className="flex items-center justify-between gap-4 bg-card px-4 py-3">
+                <code className="truncate font-mono text-xs">{c.path}</code>
+                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                  {c.calls} call{c.calls === 1 ? "" : "s"}
+                </span>
+              </div>
+            ))}
+            <div className="bg-card px-4 py-3 text-sm text-pretty text-muted-foreground">
+              A separate script recomputed seven exchanges from fresh API calls and matched these figures. The checks
+              have unit tests, and <code className="font-mono text-xs">npm run snapshot</code> reruns the whole pipeline.
+            </div>
+          </div>
         </div>
-      </section>
+      </Section>
+
+      <Section
+        eyebrow="Trust boundary"
+        title="What Backed shows, and what it does not."
+        aside={
+          <div className="grid gap-4 self-end sm:grid-cols-2">
+            <Boundary
+              title="What it shows"
+              items={[
+                "How much of a reported reserve rests on unverified, oversized or thinly traded holdings.",
+                "Futures exposure next to the reserves an exchange discloses.",
+                "The CoinMarketCap rows and calls behind every figure.",
+              ]}
+            />
+            <Boundary
+              title="What it does not"
+              items={[
+                "Solvency. The data has no liabilities.",
+                "A safety rating. Exchanges are not ranked as safe or unsafe.",
+                "On-chain verification. Wallets and balances are taken from CoinMarketCap as returned.",
+              ]}
+            />
+          </div>
+        }
+      />
+
+      <Section
+        id="exchanges"
+        eyebrow="All exchanges"
+        title="Every exchange with wallets in the API."
+        lead={<p>Sort by any column. Open an exchange for its holdings, flags and the calls behind them.</p>}
+      >
+        <ExchangesTable rows={tableRows} />
+      </Section>
     </div>
   );
 }
 
-function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+const sources: [string, string][] = [
+  ["What each exchange holds", "/v1/exchange/assets"],
+  ["01 Unverified supply", "quotes/latest · circulating_supply"],
+  ["02 Above circulating supply", "quotes/latest · circulating_supply"],
+  ["03 Thin market", "quotes/latest · num_market_pairs"],
+  ["Redeemable assets", "quotes/latest · tags"],
+  ["04 Open interest", "/v5/exchange/derivatives/list"],
+  ["Liquidation reporting", "/v5/derivatives/liquidations/…"],
+];
+
+function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-background p-5">
+    <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">{value}</dd>
-      <dd className="mt-1 text-xs text-muted-foreground">{note}</dd>
+      <dd className="mt-1 font-mono text-lg tabular-nums">{value}</dd>
     </div>
   );
 }
 
-function SectionHead({ title, body }: { title: string; body: string }) {
+function Fact({ value, body }: { value: string; body: string }) {
   return (
-    <div className="max-w-2xl">
-      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+    <div className="bg-card p-6">
+      <p className="font-display text-3xl leading-tight">{value}</p>
       <p className="mt-2 text-sm text-pretty text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+function Boundary({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-xl border bg-card p-6">
+      <p className="text-sm font-medium">{title}</p>
+      <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+        {items.map((i) => (
+          <li key={i} className="text-pretty">
+            {i}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

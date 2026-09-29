@@ -1,6 +1,7 @@
 import "server-only";
 import snapshotJson from "../../data/snapshot.json";
 import historyJson from "../../data/history.json";
+import type { CardExchange, CardRefusal } from "@/components/exchange-card";
 import type { HistoryPoint, Snapshot, SnapshotExchange } from "./snapshot";
 
 export const snapshot = snapshotJson as unknown as Snapshot;
@@ -49,4 +50,32 @@ export function callsFor(e: SnapshotExchange) {
     if (c.path === "/v2/cryptocurrency/quotes/latest") return c.params.id.split(",").some((id) => ids.has(id));
     return c.path.startsWith("/v5/");
   });
+}
+
+export function toCard(e: SnapshotExchange): CardExchange {
+  return {
+    slug: e.slug,
+    name: e.name,
+    reported: e.reportedUsd,
+    backed: e.backedUsd,
+    unverified: e.unverifiedUsd,
+    thin: e.thinUsd,
+    excess: e.excessUsd,
+    cover: e.cover,
+    reportsLiquidations: e.reportsLiquidations,
+    wallets: e.walletCount,
+  };
+}
+
+export function refusals(): CardRefusal[] {
+  return snapshot.noWallets.map((e) => ({ slug: e.slug, name: e.name, audited: e.porAuditStatus === 1 }));
+}
+
+export function callCounts() {
+  const counts = new Map<string, { calls: number; credits: number }>();
+  for (const c of snapshot.calls) {
+    const n = counts.get(c.path) ?? { calls: 0, credits: 0 };
+    counts.set(c.path, { calls: n.calls + 1, credits: n.credits + c.credits });
+  }
+  return [...counts].map(([path, n]) => ({ path, ...n }));
 }

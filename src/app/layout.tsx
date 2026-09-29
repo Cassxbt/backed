@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import Link from "next/link";
 import { ThemeProvider } from "next-themes";
 import { SiteHeader } from "@/components/site-header";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const instrumentSerif = Instrument_Serif({ variable: "--font-instrument-serif", subsets: ["latin"], weight: "400" });
 
 export const metadata: Metadata = {
   title: "Backed — what exchange reserves are made of",
@@ -17,17 +19,35 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const fonts = `${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`;
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${fonts} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <TooltipProvider delayDuration={100}>
-            <SiteHeader />
+            <SiteHeader snapshotLabel={`Snapshot ${utc(snapshot.generatedAt)}`} />
             <main className="flex-1">{children}</main>
             <footer className="border-t">
-              <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
-                <p>Data from the CoinMarketCap Pro API. Snapshot {utc(snapshot.generatedAt)}.</p>
-                <p>Not a solvency test. Reserves data carries no liabilities.</p>
+              <div className="mx-auto grid max-w-6xl gap-6 px-4 py-10 text-sm text-muted-foreground sm:grid-cols-3 sm:px-6">
+                <div>
+                  <p className="font-medium text-foreground">Backed</p>
+                  <p className="mt-1">Built for Build with CMC: API Hackathon. Data and Visualisation track.</p>
+                </div>
+                <div className="space-y-1">
+                  <Link href="/method" className="block hover:text-foreground">
+                    Method
+                  </Link>
+                  <Link href="/api-notes" className="block hover:text-foreground">
+                    API notes
+                  </Link>
+                  <Link href="/#exchanges" className="block hover:text-foreground">
+                    All exchanges
+                  </Link>
+                </div>
+                <div>
+                  <p>Data from the CoinMarketCap Pro API.</p>
+                  <p className="mt-1">Not a solvency test. Reserves data carries no liabilities.</p>
+                </div>
               </div>
             </footer>
           </TooltipProvider>
