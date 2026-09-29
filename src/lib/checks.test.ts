@@ -69,6 +69,18 @@ describe("classifyHolding", () => {
     expect(r.flag).toBe("unverified");
   });
 
+  it("exempts redeemable assets from thin and excess checks", () => {
+    const gtbtc = token({ tags: ["wrapped-tokens"], marketPairs: 1 });
+    expect(classifyHolding(holding({}), gtbtc).flag).toBeNull();
+    const stable = token({ tags: ["stablecoin"], circulatingSupply: 10 });
+    expect(classifyHolding(holding({ balance: 1000 }), stable).flag).toBeNull();
+  });
+
+  it("still flags redeemable assets without verified supply", () => {
+    const usdz = token({ tags: ["stablecoin"], circulatingSupply: 0 });
+    expect(classifyHolding(holding({ usd: 1.38e9 }), usdz).flag).toBe("unverified");
+  });
+
   it("does not report days of volume for redeemable assets", () => {
     const wbeth = token({ tags: ["liquid-staking-derivatives"], volume24h: 1 });
     const r = classifyHolding(holding({ usd: 9.7e9 }), wbeth);

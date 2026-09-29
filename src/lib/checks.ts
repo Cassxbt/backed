@@ -25,6 +25,8 @@ export function classifyHolding(h: Holding, token: Token | undefined): HoldingRe
   if (!token || circ <= 0) {
     flag = "unverified";
     flaggedUsd = h.usd;
+  } else if (redeemable) {
+    // Value comes from redemption, and CMC supply figures for multi-chain redeemables are incomplete.
   } else if ((token.marketPairs ?? 0) <= THIN_MARKET_PAIRS) {
     flag = "thin";
     flaggedUsd = h.usd;
