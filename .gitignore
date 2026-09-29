@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local agent and editor files
+.claude/
+.agents/
+.21st/
+AGENTS.md
+CLAUDE.md
+
+# raw api captures (large, regenerable)
+/data/raw/
