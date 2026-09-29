@@ -21,7 +21,7 @@ const friction = [
   },
   {
     title: "A reserve balance is mapped to the wrong token",
-    body: "Binance's USDS rows carry crypto_id 33452 (TheStandard USD, about 281K circulating). The balance is 39 times that token's supply, which points to USDS (id 33039). A symbol-only match would explain it.",
+    body: "Binance's USDS rows carry crypto_id 33452 (TheStandard USD, about 281K circulating). The balance is 39 times that token's supply, which points to USDS (id 33039). One possible cause is matching by symbol alone.",
   },
   {
     title: "No timestamp on reserve rows",
@@ -45,7 +45,7 @@ const friction = [
   },
   {
     title: "Market depth is off the Basic plan",
-    body: "market-pairs/latest would let the thin-market check use real depth instead of a pair count, but it returns 403 on the Basic plan. Judges and most users will be on that plan.",
+    body: "market-pairs/latest would let the thin-market check use real depth instead of a pair count, but it returns 403 on the Basic plan. Most API users are on that plan.",
   },
 ];
 

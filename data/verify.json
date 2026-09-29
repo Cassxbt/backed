@@ -1,0 +1,99 @@
+{
+  "at": "2026-09-29T07:03:21.355Z",
+  "snapshotAt": "2026-09-29T07:02:21.080Z",
+  "maxDiff": 0.0031888324820777557,
+  "credits": 21,
+  "results": [
+    {
+      "slug": "lbank",
+      "reported": {
+        "snapshot": 550932853.9532679,
+        "recomputed": 552689686.5333979,
+        "diff": 0.0031888324820777557
+      },
+      "flagged": {
+        "snapshot": 536906552.3137248,
+        "recomputed": 538644279.9847549,
+        "diff": 0.0031541550999562716
+      }
+    },
+    {
+      "slug": "weex",
+      "reported": {
+        "snapshot": 226405359.3411262,
+        "recomputed": 226405359.3411262,
+        "diff": 0
+      },
+      "flagged": {
+        "snapshot": 111206947.42214444,
+        "recomputed": 111206947.42214444,
+        "diff": 0
+      }
+    },
+    {
+      "slug": "mexc",
+      "reported": {
+        "snapshot": 5289324950.3167515,
+        "recomputed": 5290220295.242758,
+        "diff": 0.00016927394977930016
+      },
+      "flagged": {
+        "snapshot": 529624882.6286135,
+        "recomputed": 529662861.57326937,
+        "diff": 0.0000071803008914437864
+      }
+    },
+    {
+      "slug": "gate",
+      "reported": {
+        "snapshot": 7323392119.901971,
+        "recomputed": 7323392119.901972,
+        "diff": 1.3022303063829602e-16
+      },
+      "flagged": {
+        "snapshot": 71597331.31655407,
+        "recomputed": 71597331.31655425,
+        "diff": 2.4416818244680505e-17
+      }
+    },
+    {
+      "slug": "binance",
+      "reported": {
+        "snapshot": 173250267397.33362,
+        "recomputed": 173250267397.33368,
+        "diff": 3.5229473043191016e-16
+      },
+      "flagged": {
+        "snapshot": 8018350.251037598,
+        "recomputed": 8018350.251032097,
+        "diff": 3.174824032487276e-17
+      }
+    },
+    {
+      "slug": "blockfinex",
+      "reported": {
+        "snapshot": 1420052171.7776067,
+        "recomputed": 1420006051.3816445,
+        "diff": 0.000032477958823516516
+      },
+      "flagged": {
+        "snapshot": 1420052171.7776067,
+        "recomputed": 1420006051.3816445,
+        "diff": 0.000032477958823516516
+      }
+    },
+    {
+      "slug": "htx",
+      "reported": {
+        "snapshot": 3414506816.1472893,
+        "recomputed": 3413817127.182507,
+        "diff": 0.0002019878717244556
+      },
+      "flagged": {
+        "snapshot": 0,
+        "recomputed": 0,
+        "diff": 0
+      }
+    }
+  ]
+}

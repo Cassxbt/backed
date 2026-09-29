@@ -15,7 +15,7 @@ export type CompositionRow = {
 };
 
 export const SEGMENTS = [
-  { key: "backed", label: "Backed", className: "bg-backed" },
+  { key: "backed", label: "Passes all checks", className: "bg-backed" },
   { key: "unverified", label: "Unverified supply", className: "bg-unverified" },
   { key: "thin", label: "Thin market", className: "bg-thin" },
   { key: "excess", label: "Above circulating supply", className: "bg-excess" },
@@ -47,8 +47,8 @@ export function CompositionChart({ rows }: { rows: CompositionRow[] }) {
             onMouseEnter={() => setActive(r.slug)}
             onFocus={() => setActive(r.slug)}
             onBlur={() => setActive(null)}
-            aria-label={`${r.name}: ${pct(r.backed / r.reported)} backed of ${usd(r.reported)} reported`}
-            className="relative grid grid-cols-[7.5rem_1fr_3.5rem] items-center gap-3 rounded-sm py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[10rem_1fr_5rem]"
+            aria-label={`${r.name}: ${pct(r.backed / r.reported)} passes all checks, of ${usd(r.reported)} reported`}
+            className="relative grid grid-cols-[6.5rem_1fr_6.5rem] items-center gap-3 rounded-sm py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[10rem_1fr_9rem]"
           >
             <span className="truncate text-xs">{r.name}</span>
             <span className="relative flex h-4 gap-[2px]">
@@ -83,7 +83,9 @@ export function CompositionChart({ rows }: { rows: CompositionRow[] }) {
                 </span>
               )}
             </span>
-            <span className="text-right font-mono text-xs tabular-nums">{pct(r.backed / r.reported)}</span>
+            <span className="text-right font-mono text-xs tabular-nums">
+              {pct(r.backed / r.reported)} <span className="text-muted-foreground">of {usd(r.reported)}</span>
+            </span>
           </Link>
         </li>
       ))}

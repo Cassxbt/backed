@@ -2,43 +2,40 @@
 
 **CoinMarketCap shows how much an exchange holds. Backed shows what it is made of.**
 
-Backed runs four checks on every exchange that publishes wallet-level proof-of-reserves through the CoinMarketCap API. It marks the part of each reported total that is not backed by verified, traded, circulating supply, and it sets each exchange's futures open interest against its disclosed reserves. Every number comes from CoinMarketCap fields, and every flag links back to the fields that caused it.
+Backed checks every exchange that publishes wallet-level proof-of-reserves through the CoinMarketCap API. It flags the part of each reported total that rests on tokens with unverified supply, holdings larger than the circulating supply, or very thin markets, and it sets each exchange's futures open interest against its disclosed reserves. Every number comes from CoinMarketCap fields, and every flag links back to the fields that caused it.
 
 Built for **Build with CMC: API Hackathon**, Data and Visualisation track. `#BuildwithCMC`
 
-- Live demo: to be added at deployment
-- Demo video: to be added at submission
-
 ## What it finds
 
-Snapshot of 2026-09-29 04:41 UTC, free Basic plan, 111 credits:
+Snapshot of 2026-09-29 07:02 UTC, free Basic plan, 111 calls and 111 credits:
 
 | | |
 |---|---|
-| Exchanges with wallet-level reserves in the API | 71 (18 more are marked as reporting but return no wallets) |
-| Reported reserves | $282.2B |
-| Flagged by the checks | $2.8B, with 9 exchanges at 5% or more |
-| Exchanges with more open interest than reserves | 32 of 52, carrying $111.7B of open interest on $17.0B of reserves |
-| Exchanges above 10× | 21, carrying $83.5B on $2.2B |
-| Of the 32 above 1×, not reporting liquidations to CMC | 31 |
+| Exchanges with wallet-level reserves in the API | 71 (18 more are listed as reporting but return no wallets) |
+| Reported reserves | $284.6B |
+| Flagged by the checks | $2.8B, with 8 exchanges at 5% or more. The largest single flag is USDZ at Blockfinex, $1.4B |
+| Exchanges with more open interest than disclosed reserves | 32 of 52, carrying $113.6B of open interest on $17.1B of reserves |
+| Exchanges above 10× | 21, carrying $85.1B on $2.2B. Ratios are largest where disclosed reserves are small |
+| CoinMarketCap liquidation data | 6 of the 71 exchanges, and 1 of the 32 above 1× |
 
 Examples, each traceable to raw API rows on its exchange page:
 
-- **LBank** reports $551M. 97.5% sits in tokens for which CoinMarketCap shows no verified circulating supply. The largest is UMM: 98.9M tokens in one LBank wallet, one market pair, `circulating_supply: 0`.
-- **MEXC** holds 3.6 times the circulating supply of its own token MX. The $448M above circulating supply cannot all be customer deposits.
-- **WEEX** reports $225M of reserves and $11B of open interest (49×).
-- **Binance and OKX** come out 100% backed on these checks.
+- **LBank** reports $551M. 97.5% sits in tokens whose circulating supply CoinMarketCap has not verified. The largest is UMM: 98.9M tokens in one LBank wallet, one market pair, `circulating_supply: 0`.
+- **MEXC** holds 3.6 times the circulating supply of its own token MX. The $449M above circulating supply cannot have come from customer deposits. It is most likely MEXC's own treasury.
+- **WEEX** reports $226M of reserves and $11.1B of open interest (49×).
+- **Binance and OKX** pass the checks on more than 99.9%: $8.0M and $8.1M flagged against $173B and $21B.
 
 ## The checks
 
 | Check | Rule | Effect |
 |---|---|---|
-| Unverified supply | `circulating_supply` is 0 or the token is not returned | Whole holding flagged |
-| Above circulating supply | balance held > `circulating_supply` | Portion above supply flagged |
-| Thin market | `num_market_pairs` ≤ 2 | Whole holding flagged |
-| Disclosure | open interest ÷ reserves, `porAuditStatus`, liquidation reporting, wallet count | Shown beside the result, never subtracted |
+| 01 Unverified supply | `circulating_supply` is 0 or the token is not returned | Whole holding flagged |
+| 02 Above circulating supply | balance held > `circulating_supply` | Portion above supply flagged |
+| 03 Thin market | `num_market_pairs` ≤ 2 | Whole holding flagged. In the current snapshot every such token is already caught by 01, so it flags $0 |
+| 04 Open interest | open interest ÷ reserves, plus `porAuditStatus`, liquidation data and wallet count | Shown beside the result, never subtracted |
 
-Backed value is reported reserves minus the three flags. Flags never overlap. Stablecoins, wrapped tokens and staked tokens (CoinMarketCap tags `stablecoin`, `wrapped-tokens`, `liquid-staking-derivatives`, `rehypothecated-crypto`) are only checked for unverified supply, because their value comes from redemption and their CoinMarketCap supply is often counted on one chain. There are no tunable weights. The full method is on the `/method` page.
+The checked value is reported reserves minus the three flags. Flags never overlap. Stablecoins, wrapped tokens and staked tokens (CoinMarketCap tags `stablecoin`, `wrapped-tokens`, `liquid-staking-derivatives`, `rehypothecated-crypto`) are only checked for unverified supply, because their value comes from redemption and their CoinMarketCap supply is often counted on one chain. There are no tunable weights. The full method is on the `/method` page.
 
 ## CoinMarketCap endpoints used
 
@@ -122,6 +119,7 @@ Where it got in the way, each reproduced against the live API (details on the `/
 npm install
 echo "CMC_PRO_API_KEY=your-key" > .env.local
 npm run snapshot   # about 2.5 minutes, about 110 credits
+npm run verify     # recompute 7 exchanges from fresh calls, about 20 credits
 npm run dev
 npm test
 ```
@@ -131,6 +129,7 @@ npm test
 ```
 scripts/cmc.ts        API client: rate limit, retries, call log
 scripts/snapshot.ts   pipeline: map → info → assets → quotes → derivatives
+scripts/verify.ts     independent recompute that does not use src/lib/checks.ts
 src/lib/checks.ts     the checks, pure functions
 src/lib/checks.test.ts
 src/app/              overview, exchange pages, method, API notes
@@ -140,7 +139,7 @@ src/app/              overview, exchange pages, method, API notes
 
 | Claim | Status |
 |---|---|
-| Figures match CoinMarketCap API responses | Yes, recomputed independently for seven exchanges within 0.03% |
+| Figures match CoinMarketCap API responses | Yes. `npm run verify` re-fetched seven exchanges at 07:03 UTC and matched the snapshot within 0.32% of reserves. Prices and open interest move between runs |
 | Reserves are checked on-chain | No. Wallet lists and balances are taken from CoinMarketCap as returned |
 | This is a solvency test | No. The data has no liabilities |
 | Open interest is a liability | No. It is shown beside reserves, never subtracted |

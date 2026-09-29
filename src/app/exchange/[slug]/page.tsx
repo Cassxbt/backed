@@ -43,8 +43,8 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
           <h1 className="mt-4 font-display text-6xl leading-none tracking-tight sm:text-7xl">{e.name}</h1>
           <p className="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
             Reports <span className="text-foreground">{usd(e.reportedUsd)}</span> across {e.walletCount} wallets on{" "}
-            {e.chains.length} chains. <span className="text-foreground">{pct(e.backedShare)}</span> of it is backed on
-            these checks.
+            {e.chains.length} chains. <span className="text-foreground">{pct(e.backedShare)}</span> of it passes
+            the checks.
           </p>
         </div>
         <ExchangeCard e={toCard(e)} link={false} />
@@ -86,8 +86,8 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
               <dd className="text-right font-mono tabular-nums">{ratio(e.cover)}</dd>
               <dt className="text-muted-foreground">Open interest</dt>
               <dd className="text-right font-mono tabular-nums">{usd(e.openInterestUsd)}</dd>
-              <dt className="text-muted-foreground">Liquidations to CoinMarketCap</dt>
-              <dd className="text-right">{e.reportsLiquidations ? "Reported" : "Not reported"}</dd>
+              <dt className="text-muted-foreground">CMC liquidation data</dt>
+              <dd className="text-right">{e.reportsLiquidations ? "Yes" : "None"}</dd>
               <dt className="text-muted-foreground">Audit flag</dt>
               <dd className="text-right">{e.porAuditStatus === 1 ? "Yes" : "No"}</dd>
             </dl>
@@ -101,10 +101,10 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
         title="Every large holding, and every flag."
         lead={
           <p>
-            The {e.holdings.length} largest holdings and every flagged holding over $10K. Stablecoins, wrapped and staked
-            tokens are only checked for unverified supply.
-            {e.otherHoldings.count > 0 &&
-              ` ${e.otherHoldings.count} smaller holdings worth ${usd(e.otherHoldings.usd)} are included in the totals.`}
+            {e.otherHoldings.count === 0
+              ? `All ${e.holdings.length} holdings.`
+              : `${e.holdings.length} holdings: the 40 largest, plus every smaller flagged holding over $10K. ${e.otherHoldings.count} smaller holdings worth ${usd(e.otherHoldings.usd)} are included in the totals.`}{" "}
+            Stablecoins, wrapped and staked tokens are only checked for unverified supply.
           </p>
         }
       >
@@ -161,8 +161,8 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                     </span>
                     <FlagBadge flag={h.flag} />
                   </summary>
-                  <div className="mt-5 grid gap-6 md:grid-cols-2">
-                    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 font-mono text-xs">
+                  <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <dl className="grid min-w-0 grid-cols-[auto_1fr] gap-x-6 gap-y-1 font-mono text-xs">
                       <dt className="text-muted-foreground">crypto_id</dt>
                       <dd>{h.cryptoId}</dd>
                       <dt className="text-muted-foreground">balance held</dt>
@@ -178,7 +178,7 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                       <dt className="text-muted-foreground">volume_24h</dt>
                       <dd>{usd(t?.volume24h)}</dd>
                     </dl>
-                    <ul className="space-y-1 font-mono text-xs">
+                    <ul className="min-w-0 space-y-1 font-mono text-xs">
                       {h.rows?.map((r) => (
                         <li key={`${r.address}-${r.chain}`} className="flex justify-between gap-4">
                           <span className="truncate text-muted-foreground" title={r.address}>

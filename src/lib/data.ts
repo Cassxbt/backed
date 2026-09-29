@@ -1,11 +1,13 @@
 import "server-only";
 import snapshotJson from "../../data/snapshot.json";
 import historyJson from "../../data/history.json";
+import verifyJson from "../../data/verify.json";
 import type { CardExchange, CardRefusal } from "@/components/exchange-card";
 import type { HistoryPoint, Snapshot, SnapshotExchange } from "./snapshot";
 
 export const snapshot = snapshotJson as unknown as Snapshot;
 export const history = historyJson as unknown as HistoryPoint[];
+export const verification = verifyJson as { at: string; snapshotAt: string; maxDiff: number; results: { slug: string }[] };
 
 export const flaggedUsd = (e: SnapshotExchange) => e.reportedUsd - e.backedUsd;
 
@@ -32,8 +34,10 @@ export function summary() {
       count: overOne.length,
       openInterest: sum(overOne, (e) => e.openInterestUsd ?? 0),
       reserves: sum(overOne, (e) => e.reportedUsd),
-      withoutLiquidations: overOne.filter((e) => !e.reportsLiquidations).length,
+      withLiquidationData: overOne.filter((e) => e.reportsLiquidations).length,
     },
+    liquidationData: xs.filter((e) => e.reportsLiquidations).length,
+    largestFlag: largestFlag(),
     overTen: {
       count: overTen.length,
       openInterest: sum(overTen, (e) => e.openInterestUsd ?? 0),
@@ -78,4 +82,9 @@ export function callCounts() {
     counts.set(c.path, { calls: n.calls + 1, credits: n.credits + c.credits });
   }
   return [...counts].map(([path, n]) => ({ path, ...n }));
+}
+
+function largestFlag() {
+  const all = snapshot.exchanges.flatMap((e) => e.holdings.map((h) => ({ exchange: e.name, symbol: h.symbol, usd: h.flaggedUsd })));
+  return all.sort((a, b) => b.usd - a.usd)[0];
 }

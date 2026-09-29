@@ -1,5 +1,6 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Cmc } from "./cmc";
+import { loadKey } from "./key";
 import { checkExchange } from "../src/lib/checks";
 import type { ExchangeInput, Holding, Token } from "../src/lib/types";
 import type { HistoryPoint, Snapshot, SnapshotExchange, WalletRow } from "../src/lib/snapshot";
@@ -31,15 +32,6 @@ const KEEP_FLAGGED_MIN_USD = 10_000;
 const ROWS_PER_FLAG = 5;
 
 const chunk = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
-
-function loadKey() {
-  if (process.env.CMC_PRO_API_KEY) return process.env.CMC_PRO_API_KEY;
-  if (existsSync(".env.local")) {
-    const line = readFileSync(".env.local", "utf8").split("\n").find((l) => l.startsWith("CMC_PRO_API_KEY="));
-    if (line) return line.slice("CMC_PRO_API_KEY=".length).trim();
-  }
-  return "";
-}
 
 async function main() {
   const cmc = new Cmc(loadKey());

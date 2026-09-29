@@ -13,19 +13,16 @@ export type CoverRow = {
   reportsLiquidations: boolean;
 };
 
-const MIN = 0.001;
-const MAX = 10000;
-const TICKS = [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000];
-const LABELS = [0.01, 1, 100];
-const ROW = 22;
-const DEFAULT_ROWS = 24;
+const MIN = 0.01;
+const MAX = 3000;
+const TICKS = [0.01, 0.1, 1, 10, 100, 1000];
+const LABELS = [0.01, 1, 10, 100, 1000];
+const ROW = 18;
 
 const x = (v: number) => (Math.log10(Math.min(Math.max(v, MIN), MAX)) - Math.log10(MIN)) / (Math.log10(MAX) - Math.log10(MIN));
 
 export function CoverPlot({ rows }: { rows: CoverRow[] }) {
-  const [showAll, setShowAll] = useState(false);
   const [active, setActive] = useState<string | null>(null);
-  const shown = showAll ? rows : rows.slice(0, DEFAULT_ROWS);
 
   return (
     <div>
@@ -33,7 +30,7 @@ export function CoverPlot({ rows }: { rows: CoverRow[] }) {
         <span>Exchange</span>
         <div className="relative h-4">
           {LABELS.map((t) => (
-            <span key={t} className="absolute -translate-x-1/2 tabular-nums" style={{ left: `${x(t) * 100}%` }}>
+            <span key={t} className={`absolute -translate-x-1/2 tabular-nums ${t === 1 || t === 100 ? "" : "hidden sm:inline"}`} style={{ left: `${x(t) * 100}%` }}>
               {t.toLocaleString("en-US")}×
             </span>
           ))}
@@ -51,7 +48,7 @@ export function CoverPlot({ rows }: { rows: CoverRow[] }) {
             />
           ))}
         </div>
-        {shown.map((r) => {
+        {rows.map((r) => {
           const over = r.cover > 1;
           const isActive = active === r.slug;
           return (
@@ -97,15 +94,6 @@ export function CoverPlot({ rows }: { rows: CoverRow[] }) {
         })}
       </ul>
 
-      {rows.length > DEFAULT_ROWS && (
-        <button
-          type="button"
-          onClick={() => setShowAll((v) => !v)}
-          className="mt-3 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          {showAll ? "Show fewer" : `Show all ${rows.length} exchanges`}
-        </button>
-      )}
     </div>
   );
 }

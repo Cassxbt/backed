@@ -6,37 +6,10 @@ import { ExchangeCheck } from "@/components/exchange-check";
 import { ExchangesTable } from "@/components/exchanges-table";
 import { Eyebrow, Section } from "@/components/section";
 import { THIN_MARKET_PAIRS } from "@/lib/checks";
-import { callCounts, flaggedUsd, getExchange, refusals, snapshot, summary, toCard } from "@/lib/data";
-import { num, usd, utc } from "@/lib/format";
+import { callCounts, flaggedUsd, getExchange, refusals, snapshot, summary, toCard, verification } from "@/lib/data";
+import { num, pct, usd, utc } from "@/lib/format";
 
-const PICKS = ["mexc", "weex", "binance", "kraken", "lbank"];
-
-const checks = [
-  {
-    n: "01",
-    title: "Unverified supply",
-    rule: "circulating_supply = 0",
-    body: "CoinMarketCap withholds a circulating supply when it has not verified it. The reserve still prices those tokens in full. The whole holding is flagged.",
-  },
-  {
-    n: "02",
-    title: "Above circulating supply",
-    rule: "balance > circulating_supply",
-    body: "Customers can only deposit tokens that circulate. Any amount above the whole circulating supply cannot all belong to them. Only that amount is flagged.",
-  },
-  {
-    n: "03",
-    title: "Thin market",
-    rule: `num_market_pairs <= ${THIN_MARKET_PAIRS}`,
-    body: "A reserve value is balance times price. When a token trades on two pairs or fewer, that price comes from a very small market. The whole holding is flagged.",
-  },
-  {
-    n: "04",
-    title: "Open interest against reserves",
-    rule: "open_interest_usd ÷ reserves",
-    body: "Futures positions are not debts, so nothing is subtracted. The ratio shows how much trading exposure sits on top of the reserves the exchange discloses.",
-  },
-];
+const PICKS = ["mexc", "weex", "binance", "coinbase-exchange", "lbank"];
 
 export default function Home() {
   const s = summary();
@@ -79,25 +52,55 @@ export default function Home() {
     audited: e.porAuditStatus === 1,
   }));
 
+  const thinTotal = xs.reduce((n, e) => n + e.thinUsd, 0);
+  const checks = [
+    {
+      n: "01",
+      title: "Unverified supply",
+      rule: "circulating_supply = 0",
+      body: "CoinMarketCap withholds a circulating supply when it has not verified it. The reserve still prices those tokens in full. The whole holding is flagged.",
+    },
+    {
+      n: "02",
+      title: "Above circulating supply",
+      rule: "balance > circulating_supply",
+      body: "Customers can only deposit tokens that circulate. When an exchange holds more than the entire circulating supply, the extra is most likely its own treasury, not customer deposits. Only that extra is flagged.",
+    },
+    {
+      n: "03",
+      title: "Thin market",
+      rule: `num_market_pairs <= ${THIN_MARKET_PAIRS}`,
+      body: `A reserve value is balance times price. When a token trades on ${THIN_MARKET_PAIRS} pairs or fewer, that price comes from a very small market.${
+        thinTotal === 0 ? " In this snapshot every such token is already caught by check 01, so it flags $0." : ""
+      }`,
+    },
+    {
+      n: "04",
+      title: "Open interest against reserves",
+      rule: "open_interest_usd ÷ reserves",
+      body: "Futures positions are not debts, so nothing is subtracted. The ratio shows how much trading exposure sits on top of the reserves the exchange discloses.",
+    },
+  ];
+
   const flag = hero.holdings.filter((h) => h.flag).sort((a, b) => b.flaggedUsd - a.flaggedUsd)[0] ?? hero.holdings[0];
   const flagToken = snapshot.tokens[String(flag.cryptoId)];
   const flagRow = flag.rows?.[0];
   const refused = refusals();
+  const big = s.largestFlag;
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6">
-      <section className="grid gap-12 pb-16 pt-14 sm:pt-20 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center lg:gap-16">
+      <section className="grid gap-12 pb-14 pt-10 sm:pt-14 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-center lg:gap-16">
         <div>
           <Eyebrow>Build with CMC · Data and Visualisation</Eyebrow>
-          <h1 className="mt-5 font-display text-5xl leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-7xl">
+          <h1 className="mt-5 font-display text-5xl leading-[1.02] tracking-tight text-balance sm:text-6xl">
             CoinMarketCap shows how much an exchange holds. Backed shows what it is made of.
           </h1>
-          <p className="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
-            {s.exchanges} exchanges publish their reserve wallets through the CoinMarketCap API. Backed checks every
-            holding against CoinMarketCap&apos;s own supply, market and derivatives data, and marks what the headline
-            number does not support.
+          <p className="mt-5 max-w-xl text-lg text-pretty text-muted-foreground">
+            Look up any exchange that publishes reserves through CoinMarketCap and see how much of its total rests on
+            tokens with unverified supply, holdings larger than the circulating supply, or very thin markets.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-7 flex flex-wrap gap-3">
             <Link
               href="#check"
               className="inline-flex h-11 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-90"
@@ -111,7 +114,7 @@ export default function Home() {
               See the proof
             </Link>
           </div>
-          <dl className="mt-10 grid max-w-xl grid-cols-2 gap-x-6 gap-y-4 border-t pt-6 sm:grid-cols-4">
+          <dl className="mt-8 grid max-w-xl grid-cols-2 gap-x-6 gap-y-4 border-t pt-5 sm:grid-cols-4">
             <HeroStat label="Exchanges" value={String(s.exchanges)} />
             <HeroStat label="Reported" value={usd(s.reported)} />
             <HeroStat label="Flagged" value={usd(s.flagged)} />
@@ -133,31 +136,64 @@ export default function Home() {
           <p>
             An exchange&apos;s reserve figure is every wallet balance multiplied by a price. It counts tokens whose supply
             no one has verified, tokens held in amounts larger than the market, and tokens that barely trade, all at full
-            value. In 2022, FTX&apos;s balance sheet leaned on its own token, marked at a price no market could absorb.
+            value. A token priced from a tiny market can make a reserve total look far larger than anything that could be
+            sold.
           </p>
         }
         aside={
           <div className="grid gap-px self-end overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
             <Fact
               value={`${usd(hero.unverifiedUsd)} of ${usd(hero.reportedUsd)}`}
-              body={`of ${hero.name}'s reported reserves are tokens CoinMarketCap has not verified.`}
+              body={`of ${hero.name}'s reported reserves are in tokens whose circulating supply CoinMarketCap has not verified.`}
             />
             <Fact
-              value={`${s.overOne.count} of ${s.withCover}`}
-              body="exchanges carry more futures open interest than the reserves they disclose."
+              value={`${usd(s.flagged)} of ${usd(s.reported)}`}
+              body={`of all reported reserves rest on flagged holdings. The largest is ${big.symbol} at ${big.exchange}, ${usd(big.usd)}.`}
             />
           </div>
         }
       />
 
       <Section
-        id="how"
-        eyebrow="How it works"
-        title="Four checks. Only CoinMarketCap fields. No weights."
+        id="findings"
+        eyebrow="Finding 1"
+        title="Where the reported number rests on unverified or oversized holdings."
         lead={
           <p>
-            Every exchange is measured by the same rules. Backed value is the reported total minus the first three checks.
-            A holding gets at most one flag, so nothing is counted twice.{" "}
+            {flaggedRows.length} exchanges have at least 1% of reported reserves flagged. The other{" "}
+            {xs.length - flaggedRows.length} pass the checks on 99% or more, including the largest.
+          </p>
+        }
+      >
+        <Legend rows={flaggedRows} />
+        <div className="mt-4">
+          <CompositionChart rows={flaggedRows} />
+        </div>
+      </Section>
+
+      <Section
+        eyebrow="Finding 2"
+        title={`At ${s.overOne.count} exchanges, futures open interest is larger than the reserves they disclose.`}
+        lead={
+          <p>
+            {s.overTen.count} carry more than ten times their disclosed reserves, {usd(s.overTen.openInterest)} on{" "}
+            {usd(s.overTen.reserves)}. Ratios are largest where disclosed reserves are small. CoinMarketCap has liquidation
+            data for {s.overOne.withLiquidationData} of these {s.overOne.count} exchanges, and for {s.liquidationData} of all{" "}
+            {s.exchanges}. The heavier line marks 1×.
+          </p>
+        }
+      >
+        <CoverPlot rows={coverRows} />
+      </Section>
+
+      <Section
+        id="how"
+        eyebrow="How it works"
+        title="Three flags and one ratio. Only CoinMarketCap fields. No weights."
+        lead={
+          <p>
+            Every exchange is measured by the same rules. The checked value is the reported total minus the three flags. A
+            holding gets at most one flag, so nothing is counted twice.{" "}
             <Link href="/method" className="text-foreground underline underline-offset-4">
               Full method
             </Link>
@@ -174,37 +210,6 @@ export default function Home() {
             </li>
           ))}
         </ol>
-      </Section>
-
-      <Section
-        id="findings"
-        eyebrow="Findings"
-        title="Open interest far above disclosed reserves."
-        lead={
-          <p>
-            {s.overTen.count} exchanges carry more than ten times their disclosed reserves in open futures positions,{" "}
-            {usd(s.overTen.openInterest)} on {usd(s.overTen.reserves)}. {s.overOne.withoutLiquidations} of the{" "}
-            {s.overOne.count} exchanges above 1× do not report liquidations to CoinMarketCap. The dark line marks 1×.
-          </p>
-        }
-      >
-        <CoverPlot rows={coverRows} />
-      </Section>
-
-      <Section
-        eyebrow="Findings"
-        title="Where the reported number is not backed."
-        lead={
-          <p>
-            {flaggedRows.length} exchanges have at least 1% of reported reserves flagged. The other{" "}
-            {xs.length - flaggedRows.length} are 99% or more backed on these checks, including the largest.
-          </p>
-        }
-      >
-        <Legend rows={flaggedRows} />
-        <div className="mt-4">
-          <CompositionChart rows={flaggedRows} />
-        </div>
       </Section>
 
       <Section
@@ -245,8 +250,8 @@ export default function Home() {
         title="Check an exchange."
         lead={
           <p>
-            Pick an exchange you use. For the {refused.length} exchanges CoinMarketCap lists as publishing reserves but
-            returns no wallets for, Backed refuses to show a number.
+            Pick an exchange you use. {refused.length} exchanges are listed by CoinMarketCap as publishing reserves, but
+            the API returns no wallets for them. For those, Backed shows no figure rather than a guess.
           </p>
         }
       >
@@ -256,16 +261,16 @@ export default function Home() {
       <Section
         id="proof"
         eyebrow="Proof"
-        title="Every number re-runs against the live API."
+        title="Every number comes from these calls. Anyone with a free key can re-run them."
         lead={
           <p>
-            One snapshot is {snapshot.calls.length} calls and {snapshot.credits} credits on the free Basic plan, so anyone
-            can repeat it. Every exchange page lists the exact calls behind it.
+            One snapshot is {snapshot.calls.length} calls and {snapshot.credits} credits on the free Basic plan. Every
+            exchange page lists the exact calls behind it.
           </p>
         }
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="min-w-0 overflow-hidden rounded-xl border bg-card">
             <div className="border-b px-4 py-3 font-mono text-[11px] text-muted-foreground">
               {hero.name}&apos;s largest flag: the fields Backed reads
             </div>
@@ -285,18 +290,19 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
   "num_market_pairs": ${flagToken?.marketPairs ?? "null"} }`}
             </pre>
           </div>
-          <div className="grid content-start gap-px overflow-hidden rounded-xl border bg-border">
+          <div className="grid min-w-0 grid-cols-1 content-start gap-px overflow-hidden rounded-xl border bg-border">
             {callCounts().map((c) => (
-              <div key={c.path} className="flex items-center justify-between gap-4 bg-card px-4 py-3">
-                <code className="truncate font-mono text-xs">{c.path}</code>
+              <div key={c.path} className="flex min-w-0 items-center justify-between gap-4 bg-card px-4 py-3">
+                <code className="min-w-0 truncate font-mono text-xs">{c.path}</code>
                 <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                   {c.calls} call{c.calls === 1 ? "" : "s"}
                 </span>
               </div>
             ))}
             <div className="bg-card px-4 py-3 text-sm text-pretty text-muted-foreground">
-              A separate script recomputed seven exchanges from fresh API calls and matched these figures. The checks
-              have unit tests, and <code className="font-mono text-xs">npm run snapshot</code> reruns the whole pipeline.
+              <code className="font-mono text-xs">npm run verify</code> re-fetches {verification.results.length} exchanges
+              and recomputes them without the checks module. At {utc(verification.at)} it matched this snapshot within{" "}
+              {pct(verification.maxDiff, 2)} of reserves. Prices and open interest move between runs.
             </div>
           </div>
         </div>
@@ -346,7 +352,7 @@ const sources: [string, string][] = [
   ["03 Thin market", "quotes/latest · num_market_pairs"],
   ["Redeemable assets", "quotes/latest · tags"],
   ["04 Open interest", "/v5/exchange/derivatives/list"],
-  ["Liquidation reporting", "/v5/derivatives/liquidations/…"],
+  ["Liquidation coverage", "/v5/derivatives/liquidations/…"],
 ];
 
 function HeroStat({ label, value }: { label: string; value: string }) {

@@ -15,7 +15,7 @@ const checks = [
   {
     title: "Above circulating supply",
     rule: "balance held > circulating_supply",
-    body: "Customers can only deposit tokens that circulate. When an exchange's wallets hold more than the whole circulating supply, the part above it cannot all be customer deposits. Backed flags only that part.",
+    body: "Customers can only deposit tokens that circulate. When an exchange's wallets hold more than the whole circulating supply, the extra is most likely the exchange's own treasury, not customer deposits. Backed flags only that extra.",
   },
   {
     title: "Thin market",
@@ -23,7 +23,7 @@ const checks = [
     body: "The reserve value is balance times price. When a token trades on two pairs or fewer, that price comes from a very small market. In the current snapshot this check flags nothing: every such token is already caught as unverified supply, or is a redeemable asset.",
   },
   {
-    title: "Disclosure",
+    title: "Open interest against reserves",
     rule: "open_interest_usd ÷ reported reserves, porAuditStatus, liquidation reporting, wallet count",
     body: "Open interest is the value of open futures positions. It is not a liability, so it is shown beside the reserves, not subtracted from them. The same card shows whether CoinMarketCap marks the reserves as audited and whether the exchange reports liquidations.",
   },
@@ -36,8 +36,8 @@ export default function MethodPage() {
       <h1 className="mt-4 font-display text-5xl leading-none tracking-tight sm:text-6xl">Method</h1>
       <p className="mt-6 text-lg text-pretty text-muted-foreground">
         Backed uses only fields from the CoinMarketCap Pro API. There are no tunable weights: every exchange is measured
-        by the same rules, and every flagged dollar links back to the fields that caused it. Backed value is reported
-        reserves minus the three flags. The flags never overlap: a holding is unverified, thin, or above circulating
+        by the same rules, and every flagged dollar links back to the fields that caused it. The checked value is
+        reported reserves minus the three flags. The flags never overlap: a holding is unverified, thin, or above circulating
         supply, in that order.
       </p>
 
@@ -71,7 +71,7 @@ export default function MethodPage() {
       </ul>
 
       <h2 className="mt-14 font-display text-3xl tracking-tight">Pipeline</h2>
-      <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+      <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground [&_code]:break-all">
         <li>
           <code>/v1/exchange/map</code> lists {snapshot.exchangesListed} active exchanges.
         </li>

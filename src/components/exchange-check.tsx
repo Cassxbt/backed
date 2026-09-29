@@ -24,7 +24,13 @@ export function ExchangeCheck({
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
-  const matches = q ? options.filter((o) => o.e.name.toLowerCase().includes(q)).slice(0, 6) : [];
+  const starts = (o: Option) => (o.e.name.toLowerCase().startsWith(q) ? 0 : 1);
+  const matches = q
+    ? options
+        .filter((o) => o.e.name.toLowerCase().includes(q))
+        .sort((a, b) => starts(a) - starts(b))
+        .slice(0, 8)
+    : [];
 
   const choose = (o: Option) => {
     setSelected(o);
@@ -44,7 +50,7 @@ export function ExchangeCheck({
             value={query}
             onChange={(ev) => setQuery(ev.target.value)}
             onKeyDown={(ev) => ev.key === "Enter" && matches[0] && choose(matches[0])}
-            placeholder={`${scored.length + refused.length} exchanges`}
+            placeholder={`Search ${scored.length + refused.length} exchanges`}
             autoComplete="off"
             className="h-11 w-full rounded-lg border bg-card pl-9 pr-3 text-sm outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring"
           />

@@ -9,7 +9,10 @@ export function usd(n: number | null | undefined): string {
 
 export function pct(n: number | null | undefined, digits = 1): string {
   if (n == null) return "—";
-  return `${(n * 100).toFixed(digits)}%`;
+  const s = (n * 100).toFixed(digits);
+  if (n < 1 && Number(s) >= 100) return `>${(100 - 10 ** -digits).toFixed(digits)}%`;
+  if (n > 0 && Number(s) === 0) return `<${(10 ** -digits).toFixed(digits)}%`;
+  return `${s}%`;
 }
 
 export function ratio(n: number | null | undefined): string {

@@ -1,16 +1,10 @@
+import type { Call } from "../src/lib/snapshot";
+
 const BASE = "https://pro-api.coinmarketcap.com";
 const SPACING_MS = 1300;
 
-export type CallLog = {
-  path: string;
-  params: Record<string, string>;
-  credits: number;
-  errorCode: number | string;
-  at: string;
-};
-
 export class Cmc {
-  calls: CallLog[] = [];
+  calls: Call[] = [];
   private last = 0;
 
   constructor(private key: string) {
