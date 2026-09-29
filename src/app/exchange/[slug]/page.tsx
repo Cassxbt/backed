@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CompositionChart, Legend } from "@/components/composition-chart";
+import { ExchangeCard } from "@/components/exchange-card";
 import { FlagBadge } from "@/components/flag-badge";
+import { Eyebrow, Section } from "@/components/section";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { callsFor, getExchange, history, snapshot } from "@/lib/data";
-import { days, num, pct, ratio, usd, utc } from "@/lib/format";
 import { THIN_MARKET_PAIRS } from "@/lib/checks";
+import { callsFor, getExchange, history, snapshot, toCard } from "@/lib/data";
+import { days, num, pct, ratio, usd, utc } from "@/lib/format";
 
 export const dynamicParams = false;
 
@@ -27,88 +28,87 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
   const calls = callsFor(e);
   const points = history.filter((p) => p.exchanges[e.slug]);
   const tokenName = (id: number) => snapshot.tokens[String(id)]?.name ?? "";
-  const composition = [
-    {
-      slug: e.slug,
-      name: e.name,
-      reported: e.reportedUsd,
-      backed: e.backedUsd,
-      unverified: e.unverifiedUsd,
-      thin: e.thinUsd,
-      excess: e.excessUsd,
-    },
-  ];
+  const share = (v: number) => (e.reportedUsd ? v / e.reportedUsd : 0);
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6">
-      <div className="py-10">
-        <Link href="/#exchanges" className="text-sm text-muted-foreground hover:text-foreground">
-          ← All exchanges
-        </Link>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">{e.name}</h1>
-        <p className="mt-2 text-muted-foreground">
-          Reported reserves <span className="text-foreground tabular-nums">{usd(e.reportedUsd)}</span>. Backed on these
-          checks <span className="text-foreground tabular-nums">{usd(e.backedUsd)}</span> ({pct(e.backedShare)}).
-        </p>
-        <div className="mt-6 space-y-3">
-          <CompositionChart rows={composition} />
-          <Legend rows={composition} />
-        </div>
-      </div>
-
-      <section className="grid gap-px overflow-hidden rounded-lg border bg-border md:grid-cols-2">
-        <Check
-          title="Unverified supply"
-          value={usd(e.unverifiedUsd)}
-          share={e.reportedUsd ? e.unverifiedUsd / e.reportedUsd : 0}
-          body="Tokens for which CoinMarketCap shows no verified circulating supply. The reserve marks them at full price anyway."
-          field="circulating_supply = 0"
-        />
-        <Check
-          title="Above circulating supply"
-          value={usd(e.excessUsd)}
-          share={e.reportedUsd ? e.excessUsd / e.reportedUsd : 0}
-          body="The part of a holding that is larger than the token's whole circulating supply. It cannot all be customer deposits."
-          field="balance > circulating_supply"
-        />
-        <Check
-          title="Thin market"
-          value={usd(e.thinUsd)}
-          share={e.reportedUsd ? e.thinUsd / e.reportedUsd : 0}
-          body={`Tokens that trade on ${THIN_MARKET_PAIRS} or fewer market pairs, so the price behind the reserve figure comes from a very small market.`}
-          field={`num_market_pairs <= ${THIN_MARKET_PAIRS}`}
-        />
-        <div className="bg-background p-5">
-          <h3 className="text-sm font-medium">Disclosure</h3>
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-            <dt className="text-muted-foreground">Open interest ÷ reserves</dt>
-            <dd className="text-right font-mono tabular-nums">{ratio(e.cover)}</dd>
-            <dt className="text-muted-foreground">Open interest</dt>
-            <dd className="text-right font-mono tabular-nums">{usd(e.openInterestUsd)}</dd>
-            <dt className="text-muted-foreground">Liquidations to CMC</dt>
-            <dd className="text-right">{e.reportsLiquidations ? "Reported" : "Not reported"}</dd>
-            <dt className="text-muted-foreground">Wallets / chains</dt>
-            <dd className="text-right font-mono tabular-nums">
-              {e.walletCount} / {e.chains.length}
-            </dd>
-            <dt className="text-muted-foreground">Audit flag</dt>
-            <dd className="text-right">{e.porAuditStatus === 1 ? "Yes" : "No"}</dd>
-          </dl>
-          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-            porAuditStatus, open_interest_usd, liquidations list
+      <section className="grid gap-10 pb-14 pt-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-16">
+        <div>
+          <Link href="/#exchanges" className="text-sm text-muted-foreground hover:text-foreground">
+            ← All exchanges
+          </Link>
+          <div className="mt-8">
+            <Eyebrow>Exchange · CoinMarketCap id {e.id}</Eyebrow>
+          </div>
+          <h1 className="mt-4 font-display text-6xl leading-none tracking-tight sm:text-7xl">{e.name}</h1>
+          <p className="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
+            Reports <span className="text-foreground">{usd(e.reportedUsd)}</span> across {e.walletCount} wallets on{" "}
+            {e.chains.length} chains. <span className="text-foreground">{pct(e.backedShare)}</span> of it is backed on
+            these checks.
           </p>
         </div>
+        <ExchangeCard e={toCard(e)} link={false} />
       </section>
 
-      <section className="py-12">
-        <h2 className="text-lg font-semibold tracking-tight">Holdings</h2>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Largest holdings and every flagged holding over $10K. Stablecoins, wrapped tokens and liquid-staking tokens are
-          only checked for unverified supply.
-          {e.otherHoldings.count > 0 &&
-            ` ${e.otherHoldings.count} smaller holdings worth ${usd(e.otherHoldings.usd)} are included in the totals.`}
-        </p>
-        <div className="mt-6 overflow-x-auto rounded-lg border">
+      <Section eyebrow="The checks" title="What the reported number is made of.">
+        <div className="grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2">
+          <Check
+            n="01"
+            title="Unverified supply"
+            value={usd(e.unverifiedUsd)}
+            share={share(e.unverifiedUsd)}
+            body="Tokens for which CoinMarketCap shows no verified circulating supply. The reserve prices them in full anyway."
+            field="circulating_supply = 0"
+          />
+          <Check
+            n="02"
+            title="Above circulating supply"
+            value={usd(e.excessUsd)}
+            share={share(e.excessUsd)}
+            body="The part of a holding larger than the token's whole circulating supply. It cannot all belong to customers."
+            field="balance > circulating_supply"
+          />
+          <Check
+            n="03"
+            title="Thin market"
+            value={usd(e.thinUsd)}
+            share={share(e.thinUsd)}
+            body={`Tokens that trade on ${THIN_MARKET_PAIRS} or fewer market pairs, so their price comes from a very small market.`}
+            field={`num_market_pairs <= ${THIN_MARKET_PAIRS}`}
+          />
+          <div className="bg-card p-6">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="font-mono text-xs text-muted-foreground">04</span>
+            </div>
+            <h3 className="mt-4 text-lg font-medium tracking-tight">Open interest and disclosure</h3>
+            <dl className="mt-4 grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">Open interest ÷ reserves</dt>
+              <dd className="text-right font-mono tabular-nums">{ratio(e.cover)}</dd>
+              <dt className="text-muted-foreground">Open interest</dt>
+              <dd className="text-right font-mono tabular-nums">{usd(e.openInterestUsd)}</dd>
+              <dt className="text-muted-foreground">Liquidations to CoinMarketCap</dt>
+              <dd className="text-right">{e.reportsLiquidations ? "Reported" : "Not reported"}</dd>
+              <dt className="text-muted-foreground">Audit flag</dt>
+              <dd className="text-right">{e.porAuditStatus === 1 ? "Yes" : "No"}</dd>
+            </dl>
+            <code className="mt-6 block font-mono text-[11px] text-muted-foreground">open_interest_usd · porAuditStatus</code>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        eyebrow="Holdings"
+        title="Every large holding, and every flag."
+        lead={
+          <p>
+            The {e.holdings.length} largest holdings and every flagged holding over $10K. Stablecoins, wrapped and staked
+            tokens are only checked for unverified supply.
+            {e.otherHoldings.count > 0 &&
+              ` ${e.otherHoldings.count} smaller holdings worth ${usd(e.otherHoldings.usd)} are included in the totals.`}
+          </p>
+        }
+      >
+        <div className="overflow-x-auto rounded-xl border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -129,9 +129,7 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                     <span className="text-muted-foreground">{tokenName(h.cryptoId)}</span>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{usd(h.usd)}</TableCell>
-                  <TableCell className="text-right font-mono text-sm tabular-nums">
-                    {pct(e.reportedUsd ? h.usd / e.reportedUsd : 0)}
-                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm tabular-nums">{pct(share(h.usd))}</TableCell>
                   <TableCell className="text-sm">
                     <FlagBadge flag={h.flag} />
                   </TableCell>
@@ -143,19 +141,19 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
             </TableBody>
           </Table>
         </div>
-      </section>
+      </Section>
 
       {flagged.length > 0 && (
-        <section className="border-t py-12">
-          <h2 className="text-lg font-semibold tracking-tight">Evidence for each flag</h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            The CoinMarketCap fields behind every flag, and the largest wallets holding the token.
-          </p>
-          <div className="mt-6 space-y-3">
+        <Section
+          eyebrow="Evidence"
+          title="The fields behind each flag."
+          lead={<p>What CoinMarketCap returned for each flagged token, and the largest wallets holding it.</p>}
+        >
+          <div className="space-y-3">
             {flagged.map((h) => {
               const t = snapshot.tokens[String(h.cryptoId)];
               return (
-                <details key={h.cryptoId} className="group rounded-lg border px-4 py-3">
+                <details key={h.cryptoId} className="group rounded-xl border bg-card px-5 py-4">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm">
                     <span>
                       <span className="font-medium">{h.symbol}</span>{" "}
@@ -163,9 +161,9 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                     </span>
                     <FlagBadge flag={h.flag} />
                   </summary>
-                  <div className="mt-4 grid gap-6 md:grid-cols-2">
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs">
-                      <dt className="text-muted-foreground">id</dt>
+                  <div className="mt-5 grid gap-6 md:grid-cols-2">
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 font-mono text-xs">
+                      <dt className="text-muted-foreground">crypto_id</dt>
                       <dd>{h.cryptoId}</dd>
                       <dt className="text-muted-foreground">balance held</dt>
                       <dd>{num(h.balance)}</dd>
@@ -179,8 +177,6 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                       <dd>{num(t?.marketPairs)}</dd>
                       <dt className="text-muted-foreground">volume_24h</dt>
                       <dd>{usd(t?.volume24h)}</dd>
-                      <dt className="text-muted-foreground">market_cap</dt>
-                      <dd>{usd(t?.marketCap)}</dd>
                     </dl>
                     <ul className="space-y-1 font-mono text-xs">
                       {h.rows?.map((r) => (
@@ -197,51 +193,68 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
               );
             })}
           </div>
-        </section>
+        </Section>
       )}
 
-      <section className="border-t py-12">
-        <h2 className="text-lg font-semibold tracking-tight">CoinMarketCap calls behind this page</h2>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Every figure above comes from these requests, made {utc(snapshot.generatedAt)}. Reproduce the reserve call with
-          your own key:
-        </p>
-        <pre className="mt-4 overflow-x-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs">
-          {`curl -H "X-CMC_PRO_API_KEY: $CMC_PRO_API_KEY" \\\n  "https://pro-api.coinmarketcap.com/v1/exchange/assets?id=${e.id}"`}
-        </pre>
-        <ul className="mt-4 space-y-1 font-mono text-xs text-muted-foreground">
-          {calls.map((c, i) => (
-            <li key={i} className="flex flex-wrap justify-between gap-x-4">
-              <span className="break-all">
-                GET {c.path}
-                {c.path === "/v1/exchange/assets" ? `?id=${c.params.id}` : ""}
-              </span>
-              <span className="shrink-0">
-                {c.credits} credit{c.credits === 1 ? "" : "s"}
-              </span>
-            </li>
-          ))}
-        </ul>
-        {points.length > 1 && (
-          <p className="mt-6 text-sm text-muted-foreground">
-            {points.length} snapshots recorded since {utc(points[0].at)}.
+      <Section
+        eyebrow="Proof"
+        title="The calls behind this page."
+        lead={
+          <p>
+            Every figure above comes from these requests, made {utc(snapshot.generatedAt)}.
+            {points.length > 1 && ` ${points.length} snapshots recorded since ${utc(points[0].at)}.`}
           </p>
-        )}
-      </section>
+        }
+      >
+        <div className="grid gap-6 lg:grid-cols-2">
+          <pre className="overflow-x-auto rounded-xl border bg-card p-5 font-mono text-xs leading-relaxed">
+            {`$ curl -H "X-CMC_PRO_API_KEY: $KEY" \\
+  "https://pro-api.coinmarketcap.com/v1/exchange/assets?id=${e.id}"`}
+          </pre>
+          <ul className="grid content-start gap-px overflow-hidden rounded-xl border bg-border font-mono text-xs">
+            {calls.map((c, i) => (
+              <li key={i} className="flex justify-between gap-4 bg-card px-4 py-2.5">
+                <span className="truncate">
+                  GET {c.path}
+                  {c.path === "/v1/exchange/assets" ? `?id=${c.params.id}` : ""}
+                </span>
+                <span className="shrink-0 text-muted-foreground">
+                  {c.credits} credit{c.credits === 1 ? "" : "s"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Section>
     </div>
   );
 }
 
-function Check({ title, value, share, body, field }: { title: string; value: string; share: number; body: string; field: string }) {
+function Check({
+  n,
+  title,
+  value,
+  share,
+  body,
+  field,
+}: {
+  n: string;
+  title: string;
+  value: string;
+  share: number;
+  body: string;
+  field: string;
+}) {
   return (
-    <div className="bg-background p-5">
+    <div className="flex flex-col bg-card p-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <span className="font-mono text-xs text-muted-foreground tabular-nums">{pct(share)} of reserves</span>
+        <span className="font-mono text-xs text-muted-foreground">{n}</span>
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">{pct(share)} of reserves</span>
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-      <p className="mt-2 text-sm text-pretty text-muted-foreground">{body}</p>
-      <p className="mt-3 font-mono text-[11px] text-muted-foreground">{field}</p>
+      <h3 className="mt-4 text-lg font-medium tracking-tight">{title}</h3>
+      <p className="mt-1 font-display text-4xl tabular-nums">{value}</p>
+      <p className="mt-3 text-sm text-pretty text-muted-foreground">{body}</p>
+      <code className="mt-auto pt-6 font-mono text-[11px] text-muted-foreground">{field}</code>
     </div>
   );
 }

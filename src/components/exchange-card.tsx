@@ -22,7 +22,7 @@ const rows = [
   { key: "thin", label: "Thin market", dot: "bg-thin" },
 ] as const;
 
-export function ExchangeCard({ e }: { e: CardExchange }) {
+export function ExchangeCard({ e, link = true }: { e: CardExchange; link?: boolean }) {
   const share = e.reported > 0 ? e.backed / e.reported : 0;
   return (
     <div className="rounded-xl border bg-card p-5 shadow-[0_1px_0_0_var(--border)] sm:p-6">
@@ -72,12 +72,14 @@ export function ExchangeCard({ e }: { e: CardExchange }) {
         </div>
       </dl>
 
-      <Link
-        href={`/exchange/${e.slug}`}
-        className="mt-5 inline-flex text-sm font-medium underline decoration-border underline-offset-4 hover:decoration-foreground"
-      >
-        Open the evidence
-      </Link>
+      {link && (
+        <Link
+          href={`/exchange/${e.slug}`}
+          className="mt-5 inline-flex text-sm font-medium underline decoration-border underline-offset-4 hover:decoration-foreground"
+        >
+          Open the evidence
+        </Link>
+      )}
     </div>
   );
 }

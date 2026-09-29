@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Eyebrow } from "@/components/section";
 import { THIN_MARKET_PAIRS } from "@/lib/checks";
 import { snapshot } from "@/lib/data";
 import { utc } from "@/lib/format";
@@ -30,9 +31,10 @@ const checks = [
 
 export default function MethodPage() {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Method</h1>
-      <p className="mt-4 text-pretty text-muted-foreground">
+    <article className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
+      <Eyebrow>Four checks, one rulebook</Eyebrow>
+      <h1 className="mt-4 font-display text-5xl leading-none tracking-tight sm:text-6xl">Method</h1>
+      <p className="mt-6 text-lg text-pretty text-muted-foreground">
         Backed uses only fields from the CoinMarketCap Pro API. There are no tunable weights: every exchange is measured
         by the same rules, and every flagged dollar links back to the fields that caused it. Backed value is reported
         reserves minus the three flags. The flags never overlap: a holding is unverified, thin, or above circulating
@@ -52,7 +54,7 @@ export default function MethodPage() {
         ))}
       </ol>
 
-      <h2 className="mt-12 text-lg font-semibold tracking-tight">Redeemable assets</h2>
+      <h2 className="mt-14 font-display text-3xl tracking-tight">Redeemable assets</h2>
       <p className="mt-2 text-sm text-pretty text-muted-foreground">
         Stablecoins, wrapped tokens and liquid-staking tokens (CoinMarketCap tags <code>stablecoin</code>,{" "}
         <code>wrapped-tokens</code>, <code>liquid-staking-derivatives</code>, <code>rehypothecated-crypto</code>) get their value from redemption, not from
@@ -61,14 +63,14 @@ export default function MethodPage() {
         supply.
       </p>
 
-      <h2 className="mt-12 text-lg font-semibold tracking-tight">What this is not</h2>
+      <h2 className="mt-14 font-display text-3xl tracking-tight">What this is not</h2>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
         <li>Not a solvency test. The reserve data has no liabilities, so nothing here says an exchange can or cannot pay.</li>
         <li>Not a rating. Backed does not rank exchanges as safe or unsafe.</li>
         <li>Not an audit. Wallet lists come from the exchanges through CoinMarketCap and are not checked on-chain here.</li>
       </ul>
 
-      <h2 className="mt-12 text-lg font-semibold tracking-tight">Pipeline</h2>
+      <h2 className="mt-14 font-display text-3xl tracking-tight">Pipeline</h2>
       <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
         <li>
           <code>/v1/exchange/map</code> lists {snapshot.exchangesListed} active exchanges.

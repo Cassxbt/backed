@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Eyebrow } from "@/components/section";
 
 export const metadata: Metadata = { title: "API notes — Backed" };
 
@@ -50,21 +51,22 @@ const friction = [
 
 export default function ApiNotesPage() {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <h1 className="text-3xl font-semibold tracking-tight">API notes</h1>
-      <p className="mt-4 text-pretty text-muted-foreground">
+    <article className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
+      <Eyebrow>Feedback for CoinMarketCap</Eyebrow>
+      <h1 className="mt-4 font-display text-5xl leading-none tracking-tight sm:text-6xl">API notes</h1>
+      <p className="mt-6 text-lg text-pretty text-muted-foreground">
         What the CoinMarketCap API made possible, and where it got in the way. Every item below was reproduced against the
         live API while building Backed.
       </p>
 
-      <h2 className="mt-10 text-lg font-semibold tracking-tight">What it made possible</h2>
+      <h2 className="mt-14 font-display text-3xl tracking-tight">What it made possible</h2>
       <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
         {enabled.map((t) => (
           <li key={t}>{t}</li>
         ))}
       </ul>
 
-      <h2 className="mt-10 text-lg font-semibold tracking-tight">Where it got in the way</h2>
+      <h2 className="mt-14 font-display text-3xl tracking-tight">Where it got in the way</h2>
       <ol className="mt-4 space-y-5">
         {friction.map((f, i) => (
           <li key={f.title} className="grid gap-1 sm:grid-cols-[2rem_1fr]">
