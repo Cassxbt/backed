@@ -16,7 +16,7 @@ export type CoverRow = {
 const MIN = 0.001;
 const MAX = 10000;
 const TICKS = [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000];
-const LABELS = [0.01, 1, 100, 10000];
+const LABELS = [0.01, 1, 100];
 const ROW = 22;
 const DEFAULT_ROWS = 24;
 
