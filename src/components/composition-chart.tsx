@@ -21,10 +21,11 @@ export const SEGMENTS = [
   { key: "excess", label: "Above circulating supply", className: "bg-excess" },
 ] as const;
 
-export function Legend() {
+export function Legend({ rows }: { rows: CompositionRow[] }) {
+  const present = SEGMENTS.filter((s) => rows.some((r) => r[s.key] > 0));
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-      {SEGMENTS.map((s) => (
+      {present.map((s) => (
         <li key={s.key} className="flex items-center gap-1.5">
           <span className={`size-2.5 rounded-[2px] ${s.className}`} />
           {s.label}

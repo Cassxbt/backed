@@ -76,6 +76,11 @@ describe("classifyHolding", () => {
     expect(classifyHolding(holding({ balance: 1000 }), stable).flag).toBeNull();
   });
 
+  it("treats CMC's rehypothecated-crypto tag as redeemable", () => {
+    const strx = token({ tags: ["rehypothecated-crypto"], circulatingSupply: 100 });
+    expect(classifyHolding(holding({ balance: 181 }), strx).flag).toBeNull();
+  });
+
   it("still flags redeemable assets without verified supply", () => {
     const usdz = token({ tags: ["stablecoin"], circulatingSupply: 0 });
     expect(classifyHolding(holding({ usd: 1.38e9 }), usdz).flag).toBe("unverified");

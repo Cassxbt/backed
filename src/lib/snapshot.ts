@@ -24,6 +24,7 @@ export type Snapshot = {
   exchangesListed: number;
   porReporting: number;
   exchanges: SnapshotExchange[];
+  noWallets: { slug: string; name: string; porAuditStatus: number }[];
   tokens: Record<string, Token>;
   calls: Call[];
   failures: { slug: string; error: string }[];

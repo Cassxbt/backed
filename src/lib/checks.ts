@@ -2,7 +2,7 @@ import type { ExchangeInput, ExchangeResult, Holding, HoldingResult, Token } fro
 
 export const THIN_MARKET_PAIRS = 2;
 
-const REDEEMABLE_TAGS = ["stablecoin", "wrapped-tokens", "liquid-staking-derivatives"];
+const REDEEMABLE_TAGS = ["stablecoin", "wrapped-tokens", "liquid-staking-derivatives", "rehypothecated-crypto"];
 
 export function isRedeemable(token: Token | undefined): boolean {
   return !!token?.tags.some((t) => REDEEMABLE_TAGS.includes(t));

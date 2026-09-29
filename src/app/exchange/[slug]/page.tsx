@@ -27,6 +27,17 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
   const calls = callsFor(e);
   const points = history.filter((p) => p.exchanges[e.slug]);
   const tokenName = (id: number) => snapshot.tokens[String(id)]?.name ?? "";
+  const composition = [
+    {
+      slug: e.slug,
+      name: e.name,
+      reported: e.reportedUsd,
+      backed: e.backedUsd,
+      unverified: e.unverifiedUsd,
+      thin: e.thinUsd,
+      excess: e.excessUsd,
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -40,20 +51,8 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
           checks <span className="text-foreground tabular-nums">{usd(e.backedUsd)}</span> ({pct(e.backedShare)}).
         </p>
         <div className="mt-6 space-y-3">
-          <CompositionChart
-            rows={[
-              {
-                slug: e.slug,
-                name: e.name,
-                reported: e.reportedUsd,
-                backed: e.backedUsd,
-                unverified: e.unverifiedUsd,
-                thin: e.thinUsd,
-                excess: e.excessUsd,
-              },
-            ]}
-          />
-          <Legend />
+          <CompositionChart rows={composition} />
+          <Legend rows={composition} />
         </div>
       </div>
 

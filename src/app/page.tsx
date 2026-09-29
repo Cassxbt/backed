@@ -8,6 +8,7 @@ import { usd } from "@/lib/format";
 export default function Home() {
   const s = summary();
   const xs = snapshot.exchanges;
+  const noWalletsAudited = snapshot.noWallets.filter((e) => e.porAuditStatus === 1).length;
 
   const coverRows = xs
     .filter((e) => e.cover != null)
@@ -92,12 +93,24 @@ export default function Home() {
           body={`Exchanges with at least 1% of reported reserves flagged. The other ${xs.length - flaggedRows.length} exchanges are 99% or more backed on these checks.`}
         />
         <div className="mt-6">
-          <Legend />
+          <Legend rows={flaggedRows} />
         </div>
         <div className="mt-4">
           <CompositionChart rows={flaggedRows} />
         </div>
       </section>
+
+      {snapshot.noWallets.length > 0 && (
+        <section className="border-t py-12">
+          <SectionHead
+            title="Reporting status without wallets"
+            body={`${snapshot.noWallets.length} more exchanges are marked as publishing proof-of-reserves on CoinMarketCap, but the API returns no wallets for them, so they cannot be checked. They include all ${noWalletsAudited} exchanges that CoinMarketCap marks as audited.`}
+          />
+          <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
+            {snapshot.noWallets.map((e) => e.name + (e.porAuditStatus === 1 ? " (audited)" : "")).join(", ")}
+          </p>
+        </section>
+      )}
 
       <section id="exchanges" className="scroll-mt-4 border-t py-12">
         <SectionHead title="All exchanges" body="Every exchange with proof-of-reserves data in the CoinMarketCap API." />

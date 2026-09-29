@@ -9,7 +9,7 @@ type InfoRow = { id: number; slug: string; name: string; porStatus?: number; por
 type AssetRow = {
   wallet_address: string;
   balance: number;
-  platform: { crypto_id: number; symbol: string };
+  platform: { crypto_id: number; symbol: string; name: string };
   currency: { crypto_id: number; symbol: string; price_usd: number | null };
 };
 type QuoteRow = {
@@ -85,7 +85,7 @@ async function main() {
   }
 
   const deriv = await cmc.get<{ exchanges: DerivRow[] }>("/v5/exchange/derivatives/list", { limit: 500 });
-  const openInterest = new Map(deriv.exchanges.map((d) => [Number(d.exchange_id), d.quotes?.[0]?.open_interest_usd ?? null]));
+  const openInterest = new Map(deriv.exchanges.map((d) => [Number(d.exchange_id), d.quotes?.[0]?.open_interest_usd || null]));
 
   const liquidating = new Set<number>();
   for (let start = 1; ; start += 250) {
@@ -95,13 +95,18 @@ async function main() {
   }
 
   const exchanges: SnapshotExchange[] = [];
+  const noWallets: Snapshot["noWallets"] = [];
   for (const e of reporting) {
     const raw = assets.get(e.id);
     if (!raw) continue;
+    if (raw.length === 0) {
+      noWallets.push({ slug: e.slug, name: e.name, porAuditStatus: e.porAuditStatus ?? 0 });
+      continue;
+    }
 
     const seen = new Set<string>();
     const rows = raw.filter((r) => {
-      const k = `${r.wallet_address}|${r.platform.crypto_id}|${r.currency.crypto_id}|${r.balance}`;
+      const k = `${r.wallet_address.toLowerCase()}|${r.platform.crypto_id}|${r.currency.crypto_id}|${r.balance}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
@@ -119,9 +124,10 @@ async function main() {
       };
       entry.h.balance += r.balance;
       entry.h.usd += r.balance * (r.currency.price_usd ?? 0);
-      entry.wallets.add(r.wallet_address);
-      if (!entry.h.chains.includes(r.platform.symbol)) entry.h.chains.push(r.platform.symbol);
-      entry.rows.push({ address: r.wallet_address, chain: r.platform.symbol, balance: r.balance });
+      const chain = r.platform.symbol && r.platform.symbol !== "-" ? r.platform.symbol : r.platform.name;
+      entry.wallets.add(r.wallet_address.toLowerCase());
+      if (!entry.h.chains.includes(chain)) entry.h.chains.push(chain);
+      entry.rows.push({ address: r.wallet_address, chain, balance: r.balance });
       byToken.set(id, entry);
     }
 
@@ -133,7 +139,7 @@ async function main() {
       spotVolumeUsd: e.spot_volume_usd ?? null,
       openInterestUsd: openInterest.get(e.id) ?? null,
       reportsLiquidations: liquidating.has(e.id),
-      walletCount: new Set(rows.map((r) => r.wallet_address)).size,
+      walletCount: new Set(rows.map((r) => r.wallet_address.toLowerCase())).size,
       duplicateRowsRemoved: raw.length - rows.length,
       holdings: [...byToken.values()].map((v) => ({ ...v.h, wallets: v.wallets.size })),
     };
@@ -167,6 +173,7 @@ async function main() {
     exchangesListed: map.length,
     porReporting: reporting.length,
     exchanges,
+    noWallets,
     tokens: Object.fromEntries([...tokens].filter(([id]) => usedTokens.has(id))),
     calls: cmc.calls,
     failures,
