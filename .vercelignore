@@ -1,0 +1,8 @@
+.env*
+!.env.example
+.claude
+.agents
+.21st
+data/raw
+AGENTS.md
+CLAUDE.md
