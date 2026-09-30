@@ -22,6 +22,7 @@ describe("usd and ratio", () => {
   it("compacts large values", () => {
     expect(usd(551_100_000)).toBe("$551M");
     expect(usd(282_200_000_000)).toBe("$282B");
+    expect(usd(12_128_849_217_213)).toBe("$12.1T");
     expect(ratio(48.9)).toBe("48.9×");
     expect(ratio(0.0003)).toBe("<0.01×");
   });
