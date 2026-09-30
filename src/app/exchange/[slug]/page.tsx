@@ -4,10 +4,14 @@ import { notFound } from "next/navigation";
 import { ExchangeCard } from "@/components/exchange-card";
 import { FlagBadge } from "@/components/flag-badge";
 import { Eyebrow, Section } from "@/components/section";
+import { SourceLimits } from "@/components/source-limits";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { THIN_MARKET_PAIRS } from "@/lib/checks";
-import { callsFor, getExchange, history, snapshot, toCard } from "@/lib/data";
+import { callsFor, flaggedUsd, getExchange, snapshot, toCard } from "@/lib/data";
 import { days, num, pct, ratio, usd, utc } from "@/lib/format";
+
+const SHOWN = 40;
+const SHOWN_FLAG_MIN_USD = 10_000;
 
 export const dynamicParams = false;
 
@@ -25,8 +29,8 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
   if (!e) notFound();
 
   const flagged = e.holdings.filter((h) => h.flag);
+  const shown = e.holdings.filter((h, i) => i < SHOWN || (h.flag && h.flaggedUsd >= SHOWN_FLAG_MIN_USD));
   const calls = callsFor(e);
-  const points = history.filter((p) => p.exchanges[e.slug]);
   const tokenName = (id: number) => snapshot.tokens[String(id)]?.name ?? "";
   const share = (v: number) => (e.reportedUsd ? v / e.reportedUsd : 0);
 
@@ -43,21 +47,22 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
           <h1 className="mt-4 font-display text-6xl leading-none tracking-tight sm:text-7xl">{e.name}</h1>
           <p className="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
             Reports <span className="text-foreground">{usd(e.reportedUsd)}</span> across {e.walletCount} wallets on{" "}
-            {e.chains.length} chains. <span className="text-foreground">{pct(e.backedShare)}</span> of it passes
-            the checks.
+            {e.chains.length} chains. <span className="text-foreground">{usd(flaggedUsd(e))}</span> (
+            {pct(share(flaggedUsd(e)))}) is flagged, {pct(share(e.exemptUsd))} is exempt, and the rest is not flagged by
+            these checks.
           </p>
         </div>
         <ExchangeCard e={toCard(e)} link={false} />
       </section>
 
-      <Section eyebrow="The checks" title="What the reported number is made of.">
+      <Section eyebrow="The checks" title="What the reported figure is made of.">
         <div className="grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2">
           <Check
             n="01"
             title="Unverified supply"
             value={usd(e.unverifiedUsd)}
             share={share(e.unverifiedUsd)}
-            body="Tokens for which CoinMarketCap shows no verified circulating supply. The reserve prices them in full anyway."
+            body="Tokens for which CoinMarketCap shows no verified circulating supply. The reserve prices them in full anyway. This marks an evidence gap, not a worthless token."
             field="circulating_supply = 0"
           />
           <Check
@@ -65,7 +70,7 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
             title="Above circulating supply"
             value={usd(e.excessUsd)}
             share={share(e.excessUsd)}
-            body="The part of a holding larger than the token's whole circulating supply. It cannot all belong to customers."
+            body="The part of a holding larger than CoinMarketCap's circulating-supply figure. The datasets can differ in scope or timing, and ownership cannot be inferred from this alone."
             field="balance > circulating_supply"
           />
           <Check
@@ -73,14 +78,21 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
             title="Thin market"
             value={usd(e.thinUsd)}
             share={share(e.thinUsd)}
-            body={`Tokens that trade on ${THIN_MARKET_PAIRS} or fewer market pairs, so their price comes from a very small market.`}
+            body={`Tokens that trade on ${THIN_MARKET_PAIRS} or fewer market pairs, so their price comes from a very small market. A missing pair count is left unknown.`}
             field={`num_market_pairs <= ${THIN_MARKET_PAIRS}`}
           />
-          <div className="bg-card p-6">
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="font-mono text-xs text-muted-foreground">04</span>
-            </div>
-            <h3 className="mt-4 text-lg font-medium tracking-tight">Open interest and disclosure</h3>
+          <Check
+            n="04"
+            title="Exempt, not evaluated"
+            value={usd(e.exemptUsd)}
+            share={share(e.exemptUsd)}
+            body="Stablecoins and wrapped or staked tokens. Their value depends on redemption, which market data cannot test, so they are not counted as passing."
+            field="tags: stablecoin, wrapped, staked"
+          />
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border bg-card p-6">
+            <p className="text-sm font-medium">Open interest and disclosure</p>
             <dl className="mt-4 grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Open interest ÷ reserves</dt>
               <dd className="text-right font-mono tabular-nums">{ratio(e.cover)}</dd>
@@ -90,9 +102,22 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
               <dd className="text-right">{e.reportsLiquidations ? "Yes" : "None"}</dd>
               <dt className="text-muted-foreground">Audit flag</dt>
               <dd className="text-right">{e.porAuditStatus === 1 ? "Yes" : "No"}</dd>
+              <dt className="text-muted-foreground">Duplicate rows dropped</dt>
+              <dd className="text-right font-mono tabular-nums">{e.duplicateRowsRemoved}</dd>
+              <dt className="text-muted-foreground">Conflicting balances</dt>
+              <dd className="text-right font-mono tabular-nums">{e.conflictingRows}</dd>
+              {e.unpricedRows > 0 && (
+                <>
+                  <dt className="text-muted-foreground">Rows without a price</dt>
+                  <dd className="text-right font-mono tabular-nums">{e.unpricedRows}</dd>
+                </>
+              )}
             </dl>
-            <code className="mt-6 block font-mono text-[11px] text-muted-foreground">open_interest_usd · porAuditStatus</code>
+            <p className="mt-4 text-xs text-pretty text-muted-foreground">
+              Open interest and wallet disclosures cover different things, so the ratio shows exposure, not a shortfall.
+            </p>
           </div>
+          <SourceLimits />
         </div>
       </Section>
 
@@ -101,10 +126,10 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
         title="Every large holding, and every flag."
         lead={
           <p>
-            {e.otherHoldings.count === 0
+            {shown.length === e.holdings.length
               ? `All ${e.holdings.length} holdings.`
-              : `${e.holdings.length} holdings: the 40 largest, plus every smaller flagged holding over $10K. ${e.otherHoldings.count} smaller holdings worth ${usd(e.otherHoldings.usd)} are included in the totals.`}{" "}
-            Stablecoins, wrapped and staked tokens are only checked for unverified supply.
+              : `${shown.length} of ${e.holdings.length} holdings: the ${SHOWN} largest and every smaller flagged holding over $10K.`}{" "}
+            All {e.holdings.length} are in <code className="font-mono text-xs">data/snapshot.json</code> and replay offline.
           </p>
         }
       >
@@ -115,14 +140,14 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                 <TableHead>Token</TableHead>
                 <TableHead className="text-right">Value</TableHead>
                 <TableHead className="text-right">Of reserves</TableHead>
-                <TableHead>Check</TableHead>
+                <TableHead>Result</TableHead>
                 <TableHead className="text-right">Of circulating</TableHead>
                 <TableHead className="text-right">Days of volume</TableHead>
                 <TableHead className="text-right">Wallets</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {e.holdings.map((h) => (
+              {shown.map((h) => (
                 <TableRow key={h.cryptoId}>
                   <TableCell className="text-sm">
                     <span className="font-medium">{h.symbol}</span>{" "}
@@ -131,7 +156,7 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                   <TableCell className="text-right font-mono text-sm tabular-nums">{usd(h.usd)}</TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{pct(share(h.usd))}</TableCell>
                   <TableCell className="text-sm">
-                    <FlagBadge flag={h.flag} />
+                    <FlagBadge flag={h.flag} exempt={h.exempt} />
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{pct(h.shareOfCirculating)}</TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{days(h.daysOfVolume)}</TableCell>
@@ -201,8 +226,8 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
         title="The calls behind this page."
         lead={
           <p>
-            Every figure above comes from these requests, made {utc(snapshot.generatedAt)}.
-            {points.length > 1 && ` ${points.length} snapshots recorded since ${utc(points[0].at)}.`}
+            Every figure above comes from these requests, made between {utc(snapshot.startedAt)} and{" "}
+            {utc(snapshot.generatedAt)}.
           </p>
         }
       >
@@ -211,10 +236,10 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
             {`$ curl -H "X-CMC_PRO_API_KEY: $KEY" \\
   "https://pro-api.coinmarketcap.com/v1/exchange/assets?id=${e.id}"`}
           </pre>
-          <ul className="grid content-start gap-px overflow-hidden rounded-xl border bg-border font-mono text-xs">
+          <ul className="grid min-w-0 grid-cols-1 content-start gap-px overflow-hidden rounded-xl border bg-border font-mono text-xs">
             {calls.map((c, i) => (
-              <li key={i} className="flex justify-between gap-4 bg-card px-4 py-2.5">
-                <span className="truncate">
+              <li key={i} className="flex min-w-0 justify-between gap-4 bg-card px-4 py-2.5">
+                <span className="min-w-0 truncate">
                   GET {c.path}
                   {c.path === "/v1/exchange/assets" ? `?id=${c.params.id}` : ""}
                 </span>

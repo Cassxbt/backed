@@ -6,7 +6,6 @@ export type SnapshotHolding = HoldingResult & { rows?: WalletRow[] };
 
 export type SnapshotExchange = Omit<ExchangeResult, "holdings"> & {
   holdings: SnapshotHolding[];
-  otherHoldings: { count: number; usd: number; flaggedUsd: number };
   unpricedRows: number;
 };
 
@@ -19,6 +18,8 @@ export type Call = {
 };
 
 export type Snapshot = {
+  methodVersion: string;
+  startedAt: string;
   generatedAt: string;
   credits: number;
   exchangesListed: number;
@@ -27,10 +28,10 @@ export type Snapshot = {
   noWallets: { slug: string; name: string; porAuditStatus: number }[];
   tokens: Record<string, Token>;
   calls: Call[];
-  failures: { slug: string; error: string }[];
 };
 
 export type HistoryPoint = {
   at: string;
-  exchanges: Record<string, { reported: number; backed: number; cover: number | null }>;
+  methodVersion: string;
+  exchanges: Record<string, { reported: number; flagged: number; exempt: number; cover: number | null }>;
 };

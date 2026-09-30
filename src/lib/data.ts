@@ -3,13 +3,31 @@ import snapshotJson from "../../data/snapshot.json";
 import historyJson from "../../data/history.json";
 import verifyJson from "../../data/verify.json";
 import type { CardExchange, CardRefusal } from "@/components/exchange-card";
+import { METHOD_VERSION } from "./checks";
 import type { HistoryPoint, Snapshot, SnapshotExchange } from "./snapshot";
 
 export const snapshot = snapshotJson as unknown as Snapshot;
 export const history = historyJson as unknown as HistoryPoint[];
-export const verification = verifyJson as { at: string; snapshotAt: string; maxDiff: number; results: { slug: string }[] };
 
-export const flaggedUsd = (e: SnapshotExchange) => e.reportedUsd - e.backedUsd;
+type Verification = {
+  at: string;
+  snapshotAt: string;
+  methodVersion: string;
+  tolerance: number;
+  passed: boolean;
+  maxDiff: number;
+  results: { slug: string }[];
+};
+
+const verify = verifyJson as unknown as Partial<Verification>;
+
+// A verification only counts if it ran against this exact snapshot and method.
+export const verification =
+  verify.passed === true && verify.snapshotAt === snapshot.generatedAt && verify.methodVersion === METHOD_VERSION
+    ? (verify as Verification)
+    : null;
+
+export const flaggedUsd = (e: SnapshotExchange) => e.unverifiedUsd + e.thinUsd + e.excessUsd;
 
 export function getExchange(slug: string) {
   return snapshot.exchanges.find((e) => e.slug === slug);
@@ -17,23 +35,19 @@ export function getExchange(slug: string) {
 
 export function summary() {
   const xs = snapshot.exchanges;
-  const reported = xs.reduce((n, e) => n + e.reportedUsd, 0);
-  const flagged = xs.reduce((n, e) => n + flaggedUsd(e), 0);
+  const sum = (ys: SnapshotExchange[], pick: (e: SnapshotExchange) => number) => ys.reduce((n, e) => n + pick(e), 0);
   const withCover = xs.filter((e) => e.cover != null);
   const overOne = withCover.filter((e) => e.cover! > 1);
   const overTen = withCover.filter((e) => e.cover! > 10);
-  const sum = (ys: SnapshotExchange[], pick: (e: SnapshotExchange) => number) => ys.reduce((n, e) => n + pick(e), 0);
 
   return {
     exchanges: xs.length,
-    reported,
-    flagged,
-    flaggedExchanges: xs.filter((e) => e.reportedUsd > 0 && flaggedUsd(e) / e.reportedUsd >= 0.05).length,
+    reported: sum(xs, (e) => e.reportedUsd),
+    flagged: sum(xs, flaggedUsd),
+    exempt: sum(xs, (e) => e.exemptUsd),
     withCover: withCover.length,
     overOne: {
       count: overOne.length,
-      openInterest: sum(overOne, (e) => e.openInterestUsd ?? 0),
-      reserves: sum(overOne, (e) => e.reportedUsd),
       withLiquidationData: overOne.filter((e) => e.reportsLiquidations).length,
     },
     liquidationData: xs.filter((e) => e.reportsLiquidations).length,
@@ -61,7 +75,8 @@ export function toCard(e: SnapshotExchange): CardExchange {
     slug: e.slug,
     name: e.name,
     reported: e.reportedUsd,
-    backed: e.backedUsd,
+    passed: e.passedUsd,
+    exempt: e.exemptUsd,
     unverified: e.unverifiedUsd,
     thin: e.thinUsd,
     excess: e.excessUsd,

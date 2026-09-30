@@ -6,6 +6,7 @@ const links = [
   { href: "/#findings", label: "Findings" },
   { href: "/#check", label: "Check an exchange" },
   { href: "/#proof", label: "Proof" },
+  { href: "/method", label: "Method" },
   { href: "/api-notes", label: "API notes" },
 ];
 
@@ -38,6 +39,20 @@ export function SiteHeader({ snapshotLabel }: { snapshotLabel: string }) {
           <ThemeToggle />
         </div>
       </div>
+      <nav aria-label="Main" className="border-t md:hidden">
+        <div className="flex gap-1 overflow-x-auto px-3 py-1.5 text-sm [scrollbar-width:none]">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="shrink-0 rounded-md px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {l.label}
+            </Link>
+          ))}
+          <span className="shrink-0 self-center px-2.5 font-mono text-[11px] text-muted-foreground">{snapshotLabel}</span>
+        </div>
+      </nav>
     </header>
   );
 }

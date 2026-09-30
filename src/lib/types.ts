@@ -32,6 +32,7 @@ export type ExchangeInput = {
   holdings: Holding[];
   walletCount: number;
   duplicateRowsRemoved: number;
+  conflictingRows: number;
 };
 
 export type Flag = "unverified" | "thin" | "excess";
@@ -39,6 +40,7 @@ export type Flag = "unverified" | "thin" | "excess";
 export type HoldingResult = Holding & {
   flag: Flag | null;
   flaggedUsd: number;
+  exempt: boolean;
   shareOfCirculating: number | null;
   shareOfTotal: number | null;
   daysOfVolume: number | null;
@@ -50,8 +52,9 @@ export type ExchangeResult = {
   slug: string;
   name: string;
   reportedUsd: number;
-  backedUsd: number;
-  backedShare: number;
+  passedUsd: number;
+  passedShare: number;
+  exemptUsd: number;
   unverifiedUsd: number;
   thinUsd: number;
   excessUsd: number;
@@ -63,5 +66,6 @@ export type ExchangeResult = {
   cover: number | null;
   reportsLiquidations: boolean;
   duplicateRowsRemoved: number;
+  conflictingRows: number;
   holdings: HoldingResult[];
 };

@@ -25,15 +25,19 @@ const friction = [
   },
   {
     title: "No timestamp on reserve rows",
-    body: "Rows contain wallet_address, balance, platform and currency only. There is no way to tell how old a balance is.",
+    body: "The documentation says balances may be delayed and only wallets holding at least $100,000 are shown. Rows contain wallet_address, balance, platform and currency only, so there is no way to tell how old a balance is or to line it up with the price it is multiplied by.",
   },
   {
     title: "Wallet addresses lose their case",
     body: "18 of Binance's 29 legacy Bitcoin addresses are returned in lowercase. Base58 addresses are case-sensitive, so these cannot be looked up on-chain as returned.",
   },
   {
-    title: "Duplicate reserve rows",
-    body: "Gate's response contains duplicate rows: the same wallet, token and balance, sometimes with the address in a different letter case. Backed drops them before summing.",
+    title: "Duplicate and conflicting reserve rows",
+    body: "Responses repeat the same wallet, token and balance, sometimes with the address in a different letter case. Some wallet and token pairs also come back with two different balances (Binance, Gate, Bitkub and Ourbit in the current snapshot), and nothing marks which is current. Backed drops exact duplicates and keeps the larger of conflicting balances, and counts both.",
+  },
+  {
+    title: "Open interest of zero where trading is heavy",
+    body: "exchange/derivatives/list reports open_interest_usd of exactly 0 for twelve derivatives exchanges, including OrangeX with about $45B of derivatives volume. The same exchange carried a non-zero figure a day earlier. Backed treats zero as missing data. A null, or a flag for unavailable data, would remove the ambiguity.",
   },
   {
     title: "Open interest outliers are not flagged",

@@ -1,14 +1,10 @@
 import Link from "next/link";
 import { pct, ratio, usd } from "@/lib/format";
+import { BUCKETS, type Buckets, StackBar, flaggedOf } from "./buckets";
 
-export type CardExchange = {
+export type CardExchange = Buckets & {
   slug: string;
   name: string;
-  reported: number;
-  backed: number;
-  unverified: number;
-  thin: number;
-  excess: number;
   cover: number | null;
   reportsLiquidations: boolean;
   wallets: number;
@@ -16,14 +12,9 @@ export type CardExchange = {
 
 export type CardRefusal = { slug: string; name: string; audited: boolean };
 
-const rows = [
-  { key: "unverified", label: "Unverified supply", dot: "bg-unverified" },
-  { key: "excess", label: "Above circulating supply", dot: "bg-excess" },
-  { key: "thin", label: "Thin market", dot: "bg-thin" },
-] as const;
-
 export function ExchangeCard({ e, link = true }: { e: CardExchange; link?: boolean }) {
-  const share = e.reported > 0 ? e.backed / e.reported : 0;
+  const flagged = flaggedOf(e);
+  const share = (v: number) => (e.reported > 0 ? v / e.reported : 0);
   return (
     <div className="rounded-xl border bg-card p-5 shadow-[0_1px_0_0_var(--border)] sm:p-6">
       <div className="flex items-baseline justify-between gap-4">
@@ -37,29 +28,24 @@ export function ExchangeCard({ e, link = true }: { e: CardExchange; link?: boole
           <p className="mt-1 font-mono text-2xl tabular-nums tracking-tight">{usd(e.reported)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Passes the checks</p>
-          <p className="mt-1 font-mono text-2xl tabular-nums tracking-tight">{usd(e.backed)}</p>
+          <p className="text-xs text-muted-foreground">Flagged by the checks</p>
+          <p className="mt-1 font-mono text-2xl tabular-nums tracking-tight">{usd(flagged)}</p>
         </div>
       </div>
 
-      <div className="mt-4 flex h-2.5 gap-[2px]" aria-label={`${pct(share)} passes the checks`}>
-        <span className="rounded-l-[3px] bg-backed" style={{ width: `${share * 100}%`, minWidth: share > 0 ? 2 : 0 }} />
-        {rows.map((r) =>
-          e[r.key] > 0 ? (
-            <span key={r.key} className={`last:rounded-r-[3px] ${r.dot}`} style={{ width: `${(e[r.key] / e.reported) * 100}%`, minWidth: 2 }} />
-          ) : null,
-        )}
+      <div className="mt-4" aria-label={`${pct(share(flagged))} flagged, ${pct(share(e.exempt))} exempt, ${pct(share(e.passed))} not flagged`}>
+        <StackBar b={e} />
       </div>
-      <p className="mt-2 font-mono text-xs tabular-nums text-muted-foreground">{pct(share)} passes the checks</p>
+      <p className="mt-2 font-mono text-xs tabular-nums text-muted-foreground">{pct(share(flagged))} flagged</p>
 
       <dl className="mt-5 space-y-2 border-t pt-4 text-sm">
-        {rows.map((r) => (
-          <div key={r.key} className="flex items-center justify-between gap-4">
+        {BUCKETS.map((b) => (
+          <div key={b.key} className="flex items-center justify-between gap-4">
             <dt className="flex items-center gap-2 text-muted-foreground">
-              <span className={`size-2 rounded-[2px] ${r.dot}`} />
-              {r.label}
+              <span className={`size-2 rounded-[2px] ${b.swatch}`} />
+              {b.label}
             </dt>
-            <dd className="font-mono tabular-nums">{usd(e[r.key])}</dd>
+            <dd className="font-mono tabular-nums">{usd(e[b.key])}</dd>
           </div>
         ))}
         <div className="flex items-center justify-between gap-4">
@@ -94,8 +80,8 @@ export function RefusalCard({ e }: { e: CardRefusal }) {
       <p className="mt-5 font-display text-3xl leading-tight">No wallets to check.</p>
       <p className="mt-3 text-sm text-pretty text-muted-foreground">
         CoinMarketCap lists {e.name} as publishing proof-of-reserves{e.audited ? ", with an audit flag" : ""}, but{" "}
-        <code className="font-mono text-xs">/v1/exchange/assets</code> returns no wallets for it. Backed shows no figure
-        rather than a guess.
+        <code className="font-mono text-xs">/v1/exchange/assets</code> returns no wallets for it. That says nothing about
+        the size of its reserves, so Backed shows no figure rather than a guess.
       </p>
     </div>
   );

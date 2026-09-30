@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { CompositionChart, Legend } from "@/components/composition-chart";
+import { Legend } from "@/components/buckets";
+import { CompositionChart } from "@/components/composition-chart";
 import { CoverPlot } from "@/components/cover-plot";
 import { ExchangeCard } from "@/components/exchange-card";
 import { ExchangeCheck } from "@/components/exchange-check";
 import { ExchangesTable } from "@/components/exchanges-table";
 import { Eyebrow, Section } from "@/components/section";
+import { SourceLimits } from "@/components/source-limits";
 import { THIN_MARKET_PAIRS } from "@/lib/checks";
 import { callCounts, flaggedUsd, getExchange, refusals, snapshot, summary, toCard, verification } from "@/lib/data";
 import { num, pct, usd, utc } from "@/lib/format";
@@ -15,6 +17,7 @@ export default function Home() {
   const s = summary();
   const xs = snapshot.exchanges;
   const hero = getExchange("lbank") ?? xs[0];
+  const share = (v: number, of: number) => (of > 0 ? v / of : 0);
 
   const coverRows = xs
     .filter((e) => e.cover != null)
@@ -29,24 +32,17 @@ export default function Home() {
     }));
 
   const flaggedRows = xs
-    .filter((e) => e.reportedUsd > 0 && flaggedUsd(e) / e.reportedUsd >= 0.01)
-    .sort((a, b) => a.backedShare - b.backedShare)
-    .map((e) => ({
-      slug: e.slug,
-      name: e.name,
-      reported: e.reportedUsd,
-      backed: e.backedUsd,
-      unverified: e.unverifiedUsd,
-      thin: e.thinUsd,
-      excess: e.excessUsd,
-    }));
+    .filter((e) => share(flaggedUsd(e), e.reportedUsd) >= 0.01)
+    .sort((a, b) => share(flaggedUsd(b), b.reportedUsd) - share(flaggedUsd(a), a.reportedUsd))
+    .map(toCard);
 
   const tableRows = xs.map((e) => ({
     slug: e.slug,
     name: e.name,
     reported: e.reportedUsd,
-    backedShare: e.backedShare,
     flagged: flaggedUsd(e),
+    flaggedShare: share(flaggedUsd(e), e.reportedUsd),
+    exemptShare: share(e.exemptUsd, e.reportedUsd),
     cover: e.cover,
     wallets: e.walletCount,
     audited: e.porAuditStatus === 1,
@@ -58,27 +54,27 @@ export default function Home() {
       n: "01",
       title: "Unverified supply",
       rule: "circulating_supply = 0",
-      body: "CoinMarketCap withholds a circulating supply when it has not verified it. The reserve still prices those tokens in full. The whole holding is flagged.",
+      body: "CoinMarketCap withholds a circulating supply when it has not verified it, yet the reserve total prices those tokens in full. The holding is flagged as an evidence gap, not as worthless.",
     },
     {
       n: "02",
       title: "Above circulating supply",
       rule: "balance > circulating_supply",
-      body: "Customers can only deposit tokens that circulate. When an exchange holds more than the entire circulating supply, the extra is most likely its own treasury, not customer deposits. Only that extra is flagged.",
+      body: "The disclosed holding is larger than CoinMarketCap's circulating-supply figure. The two datasets can differ in scope or timing, so only the part above it is flagged, as a discrepancy. Who owns it cannot be inferred.",
     },
     {
       n: "03",
       title: "Thin market",
       rule: `num_market_pairs <= ${THIN_MARKET_PAIRS}`,
-      body: `A reserve value is balance times price. When a token trades on ${THIN_MARKET_PAIRS} pairs or fewer, that price comes from a very small market.${
+      body: `The token trades on ${THIN_MARKET_PAIRS} pairs or fewer, so its price comes from a very small market. A missing pair count is left unknown.${
         thinTotal === 0 ? " In this snapshot every such token is already caught by check 01, so it flags $0." : ""
       }`,
     },
     {
       n: "04",
-      title: "Open interest against reserves",
-      rule: "open_interest_usd ÷ reserves",
-      body: "Futures positions are not debts, so nothing is subtracted. The ratio shows how much trading exposure sits on top of the reserves the exchange discloses.",
+      title: "Exempt, not evaluated",
+      rule: "tags: stablecoin, wrapped, staked",
+      body: "Stablecoins and wrapped or staked tokens get their value from redemption, which market data cannot test. They are checked for unverified supply only, and otherwise shown as exempt rather than passed.",
     },
   ];
 
@@ -94,11 +90,12 @@ export default function Home() {
         <div>
           <Eyebrow>Build with CMC · Data and Visualisation</Eyebrow>
           <h1 className="mt-5 font-display text-5xl leading-[1.02] tracking-tight text-balance sm:text-6xl">
-            CoinMarketCap shows how much an exchange holds. Backed shows what it is made of.
+            Exchange reserves, checked against CoinMarketCap&apos;s own data.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-pretty text-muted-foreground">
-            Look up any exchange that publishes reserves through CoinMarketCap and see how much of its total rests on
-            tokens with unverified supply, holdings larger than the circulating supply, or very thin markets.
+            CoinMarketCap already shows what each exchange&apos;s disclosed wallets hold. Backed checks every holding
+            against CoinMarketCap&apos;s supply, market and derivatives data, and shows which part of the reported figure
+            that data does not support.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
@@ -118,7 +115,7 @@ export default function Home() {
             <HeroStat label="Exchanges" value={String(s.exchanges)} />
             <HeroStat label="Reported" value={usd(s.reported)} />
             <HeroStat label="Flagged" value={usd(s.flagged)} />
-            <HeroStat label="API calls" value={String(snapshot.calls.length)} />
+            <HeroStat label="Exempt" value={usd(s.exempt)} />
           </dl>
         </div>
         <div>
@@ -131,13 +128,13 @@ export default function Home() {
 
       <Section
         eyebrow="The problem"
-        title="A reserve total is a sum of prices. Nobody checks what is being priced."
+        title="A reserve figure is balances times prices. Nothing checks them against each other."
         lead={
           <p>
-            An exchange&apos;s reserve figure is every wallet balance multiplied by a price. It counts tokens whose supply
-            no one has verified, tokens held in amounts larger than the market, and tokens that barely trade, all at full
-            value. A token priced from a tiny market can make a reserve total look far larger than anything that could be
-            sold.
+            The figure multiplies each disclosed wallet balance by a price. It includes tokens whose supply CoinMarketCap
+            has not verified, holdings larger than the supply CoinMarketCap counts as circulating, and tokens that barely
+            trade. CoinMarketCap&apos;s exchange pages show the allocation. They do not show which parts of it
+            CoinMarketCap&apos;s own supply and market data contradict.
           </p>
         }
         aside={
@@ -148,7 +145,7 @@ export default function Home() {
             />
             <Fact
               value={`${usd(s.flagged)} of ${usd(s.reported)}`}
-              body={`of all reported reserves rest on flagged holdings. The largest is ${big.symbol} at ${big.exchange}, ${usd(big.usd)}.`}
+              body={`of all reported reserves is flagged. The largest single flag is ${big.symbol} at ${big.exchange}, ${usd(big.usd)}.`}
             />
           </div>
         }
@@ -157,11 +154,12 @@ export default function Home() {
       <Section
         id="findings"
         eyebrow="Finding 1"
-        title="Where the reported number rests on unverified or oversized holdings."
+        title="Where the reported figure rests on holdings CoinMarketCap's data does not support."
         lead={
           <p>
-            {flaggedRows.length} exchanges have at least 1% of reported reserves flagged. The other{" "}
-            {xs.length - flaggedRows.length} pass the checks on 99% or more, including the largest.
+            {flaggedRows.length} exchanges have 1% or more of their reported reserves flagged, sorted by flagged share.
+            The other {xs.length - flaggedRows.length} have less. Across all exchanges, {pct(share(s.exempt, s.reported), 0)}{" "}
+            of reported value is exempt and shown as not evaluated.
           </p>
         }
       >
@@ -176,10 +174,11 @@ export default function Home() {
         title={`At ${s.overOne.count} exchanges, futures open interest is larger than the reserves they disclose.`}
         lead={
           <p>
-            {s.overTen.count} carry more than ten times their disclosed reserves, {usd(s.overTen.openInterest)} on{" "}
-            {usd(s.overTen.reserves)}. Ratios are largest where disclosed reserves are small. CoinMarketCap has liquidation
-            data for {s.overOne.withLiquidationData} of these {s.overOne.count} exchanges, and for {s.liquidationData} of all{" "}
-            {s.exchanges}. The heavier line marks 1×.
+            {s.overTen.count} carry more than ten times, {usd(s.overTen.openInterest)} on {usd(s.overTen.reserves)}. Open
+            interest and wallet disclosures cover different things, so the ratio shows exposure, not a shortfall, and it is
+            largest where disclosed reserves are small. CoinMarketCap has liquidation data for{" "}
+            {s.overOne.withLiquidationData} of these {s.overOne.count} exchanges. Where it reports open interest of exactly
+            zero, Backed treats it as missing. The heavier line marks 1×.
           </p>
         }
       >
@@ -189,11 +188,11 @@ export default function Home() {
       <Section
         id="how"
         eyebrow="How it works"
-        title="Three flags and one ratio. Only CoinMarketCap fields. No weights."
+        title="Three flags and one exemption. Only CoinMarketCap fields. No weights."
         lead={
           <p>
-            Every exchange is measured by the same rules. The checked value is the reported total minus the three flags. A
-            holding gets at most one flag, so nothing is counted twice.{" "}
+            Every holding lands in exactly one bucket: flagged, exempt, or not flagged. Not flagged means these checks found
+            nothing, not that the value is verified.{" "}
             <Link href="/method" className="text-foreground underline underline-offset-4">
               Full method
             </Link>
@@ -261,11 +260,12 @@ export default function Home() {
       <Section
         id="proof"
         eyebrow="Proof"
-        title="Every number comes from these calls. Anyone with a free key can re-run them."
+        title="Every number comes from these calls, and every total replays offline."
         lead={
           <p>
-            One snapshot is {snapshot.calls.length} calls and {snapshot.credits} credits on the free Basic plan. Every
-            exchange page lists the exact calls behind it.
+            One snapshot is {snapshot.calls.length} calls and {snapshot.credits} credits on the free Basic plan, taken{" "}
+            {utc(snapshot.startedAt)} to {utc(snapshot.generatedAt)} with method {snapshot.methodVersion}. Every exchange
+            page lists the exact calls behind it.
           </p>
         }
       >
@@ -299,39 +299,49 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
                 </span>
               </div>
             ))}
-            <div className="bg-card px-4 py-3 text-sm text-pretty text-muted-foreground">
-              <code className="font-mono text-xs">npm run verify</code> re-fetches {verification.results.length} exchanges
-              and recomputes them without the checks module. At {utc(verification.at)} it matched this snapshot within{" "}
-              {pct(verification.maxDiff, 2)} of reserves. Prices and open interest move between runs.
+            <div className="space-y-2 bg-card px-4 py-3 text-sm text-pretty text-muted-foreground">
+              <p>
+                <code className="font-mono text-xs">npm run replay</code> recomputes all {xs.length} exchanges from the
+                shipped data, offline and without a key, and fails on any mismatch.
+              </p>
+              <p>
+                {verification ? (
+                  <>
+                    <code className="font-mono text-xs">npm run verify</code> re-fetched {verification.results.length}{" "}
+                    exchanges at {utc(verification.at)} and recomputed them with separate code. It matched this snapshot
+                    within {pct(verification.maxDiff, 2)} of reserves, under a {pct(verification.tolerance, 0)} tolerance
+                    for price movement. It fails if an exchange is missing or a figure differs by more.
+                  </>
+                ) : (
+                  <>Live verification has not been run against this snapshot.</>
+                )}
+              </p>
             </div>
           </div>
         </div>
       </Section>
 
-      <Section
-        eyebrow="Trust boundary"
-        title="What Backed shows, and what it does not."
-        aside={
-          <div className="grid gap-4 self-end sm:grid-cols-2">
-            <Boundary
-              title="What it shows"
-              items={[
-                "How much of a reported reserve rests on unverified, oversized or thinly traded holdings.",
-                "Futures exposure next to the reserves an exchange discloses.",
-                "The CoinMarketCap rows and calls behind every figure.",
-              ]}
-            />
-            <Boundary
-              title="What it does not"
-              items={[
-                "Solvency. The data has no liabilities.",
-                "A safety rating. Exchanges are not ranked as safe or unsafe.",
-                "On-chain verification. Wallets and balances are taken from CoinMarketCap as returned.",
-              ]}
-            />
-          </div>
-        }
-      />
+      <Section eyebrow="Trust boundary" title="What Backed shows, what it does not, and what the source covers.">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Boundary
+            title="What it shows"
+            items={[
+              "Which parts of a reported reserve CoinMarketCap's own supply and market data do not support.",
+              "Futures exposure next to the reserves an exchange discloses.",
+              "The CoinMarketCap rows and calls behind every figure.",
+            ]}
+          />
+          <Boundary
+            title="What it does not"
+            items={[
+              "Solvency or backing. The data has no liabilities, and not flagged is not verified.",
+              "Ownership. A holding above circulating supply is a discrepancy, not proof of whose it is.",
+              "A safety rating. Exchanges are not ranked as safe or unsafe.",
+            ]}
+          />
+          <SourceLimits />
+        </div>
+      </Section>
 
       <Section
         id="exchanges"
@@ -350,8 +360,8 @@ const sources: [string, string][] = [
   ["01 Unverified supply", "quotes/latest · circulating_supply"],
   ["02 Above circulating supply", "quotes/latest · circulating_supply"],
   ["03 Thin market", "quotes/latest · num_market_pairs"],
-  ["Redeemable assets", "quotes/latest · tags"],
-  ["04 Open interest", "/v5/exchange/derivatives/list"],
+  ["04 Exempt assets", "quotes/latest · tags"],
+  ["Open interest", "/v5/exchange/derivatives/list"],
   ["Liquidation coverage", "/v5/derivatives/liquidations/…"],
 ];
 

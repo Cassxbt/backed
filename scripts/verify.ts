@@ -1,32 +1,47 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { Cmc } from "./cmc";
 import { loadKey } from "./key";
+import { METHOD_VERSION } from "../src/lib/checks";
 import type { Snapshot } from "../src/lib/snapshot";
 
-// Recomputes a few exchanges from fresh API calls without using src/lib/checks.ts,
-// so a mistake in the checks cannot hide itself.
+// Recomputes a sample of exchanges from fresh API calls without src/lib/checks.ts or src/lib/rows.ts,
+// so a mistake there cannot hide itself. Exits non-zero on any missing exchange or a difference above tolerance.
 
 const SLUGS = ["lbank", "weex", "mexc", "gate", "binance", "blockfinex", "htx"];
 const REDEEMABLE = ["stablecoin", "wrapped-tokens", "liquid-staking-derivatives", "rehypothecated-crypto"];
+const TOLERANCE = 0.01;
 
 type Row = { wallet_address: string; balance: number; platform: { crypto_id: number }; currency: { crypto_id: number; price_usd: number | null } };
 type Quote = { circulating_supply: number | null; num_market_pairs: number | null; tags: { slug: string }[] | null };
+
+function dedupe(raw: Row[]) {
+  const kept = new Map<string, Row>();
+  for (const r of raw) {
+    const address = /^0x[0-9a-f]{40}$/i.test(r.wallet_address) ? r.wallet_address.toLowerCase() : r.wallet_address;
+    const key = [address, r.platform.crypto_id, r.currency.crypto_id].join("|");
+    const prev = kept.get(key);
+    if (!prev || r.balance > prev.balance) kept.set(key, r);
+  }
+  return [...kept.values()];
+}
 
 async function main() {
   const snapshot: Snapshot = JSON.parse(readFileSync("data/snapshot.json", "utf8"));
   const cmc = new Cmc(loadKey());
   const results = [];
+  const problems: string[] = [];
 
   for (const slug of SLUGS) {
     const saved = snapshot.exchanges.find((e) => e.slug === slug);
-    if (!saved) continue;
+    if (!saved) {
+      problems.push(`${slug} missing from snapshot`);
+      continue;
+    }
 
-    const raw = await cmc.get<Row[]>("/v1/exchange/assets", { id: saved.id });
-    const unique = new Map(raw.map((r) => [`${r.wallet_address.toLowerCase()}|${r.platform.crypto_id}|${r.currency.crypto_id}|${r.balance}`, r]));
-
+    const rows = dedupe(await cmc.get<Row[]>("/v1/exchange/assets", { id: saved.id }));
     const balance = new Map<number, number>();
     const value = new Map<number, number>();
-    for (const r of unique.values()) {
+    for (const r of rows) {
       balance.set(r.currency.crypto_id, (balance.get(r.currency.crypto_id) ?? 0) + r.balance);
       value.set(r.currency.crypto_id, (value.get(r.currency.crypto_id) ?? 0) + r.balance * (r.currency.price_usd ?? 0));
     }
@@ -39,33 +54,51 @@ async function main() {
 
     let reported = 0;
     let flagged = 0;
+    let exempt = 0;
     for (const [id, usd] of value) {
       reported += usd;
       const q = quotes[String(id)];
       const circ = q?.circulating_supply ?? 0;
+      const held = balance.get(id)!;
       if (!q || circ <= 0) flagged += usd;
-      else if ((q.tags ?? []).some((t) => REDEEMABLE.includes(t.slug))) continue;
-      else if ((q.num_market_pairs ?? 0) <= 2) flagged += usd;
-      else if (balance.get(id)! > circ) flagged += (usd / balance.get(id)!) * (balance.get(id)! - circ);
+      else if ((q.tags ?? []).some((t) => REDEEMABLE.includes(t.slug))) exempt += usd;
+      else if (q.num_market_pairs != null && q.num_market_pairs <= 2) flagged += usd;
+      else if (held > circ) flagged += (usd / held) * (held - circ);
     }
 
-    const savedFlagged = saved.reportedUsd - saved.backedUsd;
-    results.push({
+    const savedFlagged = saved.unverifiedUsd + saved.thinUsd + saved.excessUsd;
+    const diff = (a: number, b: number) => Math.abs(a - b) / saved.reportedUsd;
+    const r = {
       slug,
-      reported: { snapshot: saved.reportedUsd, recomputed: reported, diff: Math.abs(reported - saved.reportedUsd) / saved.reportedUsd },
-      flagged: { snapshot: savedFlagged, recomputed: flagged, diff: Math.abs(flagged - savedFlagged) / saved.reportedUsd },
-    });
+      reported: { snapshot: saved.reportedUsd, recomputed: reported, diff: diff(reported, saved.reportedUsd) },
+      flagged: { snapshot: savedFlagged, recomputed: flagged, diff: diff(flagged, savedFlagged) },
+      exempt: { snapshot: saved.exemptUsd, recomputed: exempt, diff: diff(exempt, saved.exemptUsd) },
+    };
+    for (const k of ["reported", "flagged", "exempt"] as const) {
+      if (r[k].diff > TOLERANCE) problems.push(`${slug} ${k} differs by ${(r[k].diff * 100).toFixed(2)}% of reserves`);
+    }
+    results.push(r);
   }
 
-  const maxDiff = Math.max(...results.flatMap((r) => [r.reported.diff, r.flagged.diff]));
+  const maxDiff = Math.max(0, ...results.flatMap((r) => [r.reported.diff, r.flagged.diff, r.exempt.diff]));
+  const passed = problems.length === 0 && results.length === SLUGS.length;
   writeFileSync(
     "data/verify.json",
-    JSON.stringify({ at: new Date().toISOString(), snapshotAt: snapshot.generatedAt, maxDiff, credits: cmc.credits, results }, null, 2),
+    JSON.stringify(
+      { at: new Date().toISOString(), snapshotAt: snapshot.generatedAt, methodVersion: METHOD_VERSION, tolerance: TOLERANCE, passed, maxDiff, problems, credits: cmc.credits, results },
+      null,
+      2,
+    ),
   );
+
   for (const r of results) {
-    console.log(`${r.slug.padEnd(12)} reported ${(r.reported.diff * 100).toFixed(3)}%  flagged ${(r.flagged.diff * 100).toFixed(3)}% of reserves`);
+    console.log(
+      `${r.slug.padEnd(12)} reported ${(r.reported.diff * 100).toFixed(3)}%  flagged ${(r.flagged.diff * 100).toFixed(3)}%  exempt ${(r.exempt.diff * 100).toFixed(3)}% of reserves`,
+    );
   }
-  console.log(`max difference ${(maxDiff * 100).toFixed(3)}%, ${cmc.credits} credits`);
+  console.log(`${passed ? "PASS" : "FAIL"} max difference ${(maxDiff * 100).toFixed(3)}%, ${cmc.credits} credits`);
+  problems.forEach((p) => console.log(`  ${p}`));
+  if (!passed) process.exit(1);
 }
 
 main().catch((err) => {

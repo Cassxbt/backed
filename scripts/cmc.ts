@@ -2,6 +2,7 @@ import type { Call } from "../src/lib/snapshot";
 
 const BASE = "https://pro-api.coinmarketcap.com";
 const SPACING_MS = 1300;
+const TIMEOUT_MS = 30_000;
 
 export class Cmc {
   calls: Call[] = [];
@@ -24,7 +25,19 @@ export class Cmc {
     const url = `${BASE}${path}?${new URLSearchParams(query)}`;
 
     for (let attempt = 1; ; attempt++) {
-      const res = await fetch(url, { headers: { "X-CMC_PRO_API_KEY": this.key, Accept: "application/json" } });
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers: { "X-CMC_PRO_API_KEY": this.key, Accept: "application/json" },
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+      } catch (err) {
+        if (attempt < 4) {
+          await new Promise((r) => setTimeout(r, 5000 * attempt));
+          continue;
+        }
+        throw new Error(`${path} failed: ${(err as Error).message}`);
+      }
       const body = await res.json().catch(() => ({}));
       const status = body.status ?? {};
       const retryable = res.status === 429 || res.status >= 500 || String(status.error_code) === "500";

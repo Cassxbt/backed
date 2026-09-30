@@ -69,11 +69,22 @@ describe("classifyHolding", () => {
     expect(r.flag).toBe("unverified");
   });
 
-  it("exempts redeemable assets from thin and excess checks", () => {
-    const gtbtc = token({ tags: ["wrapped-tokens"], marketPairs: 1 });
-    expect(classifyHolding(holding({}), gtbtc).flag).toBeNull();
-    const stable = token({ tags: ["stablecoin"], circulatingSupply: 10 });
-    expect(classifyHolding(holding({ balance: 1000 }), stable).flag).toBeNull();
+  it("marks redeemable assets as exempt instead of passing them", () => {
+    const gtbtc = classifyHolding(holding({}), token({ tags: ["wrapped-tokens"], marketPairs: 1 }));
+    expect(gtbtc.flag).toBeNull();
+    expect(gtbtc.exempt).toBe(true);
+    const stable = classifyHolding(holding({ balance: 1000 }), token({ tags: ["stablecoin"], circulatingSupply: 10 }));
+    expect(stable.flag).toBeNull();
+    expect(stable.exempt).toBe(true);
+  });
+
+  it("does not exempt an ordinary token that passes", () => {
+    expect(classifyHolding(holding({}), token({})).exempt).toBe(false);
+  });
+
+  it("treats a missing market-pair count as unknown, not thin", () => {
+    const r = classifyHolding(holding({}), token({ marketPairs: null }));
+    expect(r.flag).toBeNull();
   });
 
   it("treats CMC's rehypothecated-crypto tag as redeemable", () => {
@@ -82,8 +93,9 @@ describe("classifyHolding", () => {
   });
 
   it("still flags redeemable assets without verified supply", () => {
-    const usdz = token({ tags: ["stablecoin"], circulatingSupply: 0 });
-    expect(classifyHolding(holding({ usd: 1.38e9 }), usdz).flag).toBe("unverified");
+    const usdz = classifyHolding(holding({ usd: 1.38e9 }), token({ tags: ["stablecoin"], circulatingSupply: 0 }));
+    expect(usdz.flag).toBe("unverified");
+    expect(usdz.exempt).toBe(false);
   });
 
   it("does not report days of volume for redeemable assets", () => {
@@ -100,6 +112,7 @@ describe("checkExchange", () => {
     [1, token({ id: 1 })],
     [2, token({ id: 2, circulatingSupply: 0 })],
     [3, token({ id: 3, circulatingSupply: 100, price: 2 })],
+    [4, token({ id: 4, tags: ["stablecoin"] })],
   ]);
   const input: ExchangeInput = {
     id: 99,
@@ -110,25 +123,29 @@ describe("checkExchange", () => {
     openInterestUsd: 5000,
     reportsLiquidations: false,
     duplicateRowsRemoved: 0,
+    conflictingRows: 0,
     walletCount: 3,
     holdings: [
       holding({ cryptoId: 1, usd: 1000, chains: ["ETH"] }),
       holding({ cryptoId: 2, usd: 300, wallets: 2, chains: ["BSC"] }),
       holding({ cryptoId: 3, balance: 150, usd: 300, chains: ["ETH"] }),
+      holding({ cryptoId: 4, usd: 400, chains: ["TRX"] }),
     ],
   };
 
-  it("subtracts flagged value from reported value", () => {
+  it("splits reported value into flagged, exempt and not flagged", () => {
     const r = checkExchange(input, tokens);
-    expect(r.reportedUsd).toBe(1600);
+    expect(r.reportedUsd).toBe(2000);
     expect(r.unverifiedUsd).toBe(300);
     expect(r.excessUsd).toBeCloseTo(100);
-    expect(r.backedUsd).toBeCloseTo(1200);
-    expect(r.backedShare).toBeCloseTo(0.75);
+    expect(r.exemptUsd).toBe(400);
+    expect(r.passedUsd).toBeCloseTo(1200);
+    expect(r.passedShare).toBeCloseTo(0.6);
+    expect(r.passedUsd + r.exemptUsd + r.unverifiedUsd + r.thinUsd + r.excessUsd).toBeCloseTo(r.reportedUsd);
   });
 
   it("computes cover as open interest over reported reserves", () => {
-    expect(checkExchange(input, tokens).cover).toBeCloseTo(5000 / 1600);
+    expect(checkExchange(input, tokens).cover).toBeCloseTo(5000 / 2000);
   });
 
   it("returns null cover when open interest is unknown", () => {
@@ -138,17 +155,17 @@ describe("checkExchange", () => {
   it("passes distinct wallet count through and lists distinct chains", () => {
     const r = checkExchange(input, tokens);
     expect(r.walletCount).toBe(3);
-    expect(r.chains).toEqual(["BSC", "ETH"]);
+    expect(r.chains).toEqual(["BSC", "ETH", "TRX"]);
   });
 
   it("orders holdings by value", () => {
-    expect(checkExchange(input, tokens).holdings.map((h) => h.cryptoId)).toEqual([1, 2, 3]);
+    expect(checkExchange(input, tokens).holdings.map((h) => h.cryptoId)).toEqual([1, 4, 2, 3]);
   });
 
   it("handles an exchange with no priced holdings", () => {
     const r = checkExchange({ ...input, holdings: [] }, tokens);
     expect(r.reportedUsd).toBe(0);
-    expect(r.backedShare).toBe(0);
+    expect(r.passedShare).toBe(0);
     expect(r.cover).toBeNull();
   });
 });

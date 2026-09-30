@@ -11,8 +11,9 @@ export type ExchangeRow = {
   slug: string;
   name: string;
   reported: number;
-  backedShare: number;
   flagged: number;
+  flaggedShare: number;
+  exemptShare: number;
   cover: number | null;
   wallets: number;
   audited: boolean;
@@ -23,8 +24,9 @@ type Key = Exclude<keyof ExchangeRow, "slug">;
 const columns: { key: Key; label: string; format: (r: ExchangeRow) => string; numeric?: boolean }[] = [
   { key: "name", label: "Exchange", format: (r) => r.name },
   { key: "reported", label: "Reported", format: (r) => usd(r.reported), numeric: true },
-  { key: "backedShare", label: "Backed", format: (r) => pct(r.backedShare), numeric: true },
   { key: "flagged", label: "Flagged", format: (r) => usd(r.flagged), numeric: true },
+  { key: "flaggedShare", label: "Flagged share", format: (r) => pct(r.flaggedShare), numeric: true },
+  { key: "exemptShare", label: "Exempt share", format: (r) => pct(r.exemptShare), numeric: true },
   { key: "cover", label: "OI ÷ reserves", format: (r) => ratio(r.cover), numeric: true },
   { key: "wallets", label: "Wallets", format: (r) => String(r.wallets), numeric: true },
   { key: "audited", label: "Audit flag", format: (r) => (r.audited ? "Yes" : "No"), numeric: true },
