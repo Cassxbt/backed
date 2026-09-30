@@ -35,6 +35,30 @@ describe("normalizeRows", () => {
     expect(r.conflicts).toBe(1);
   });
 
+  it("treats a different price for the same balance as a conflict, whatever the row order", () => {
+    for (const prices of [[1, 10], [10, 1], [null, 10], [10, null]]) {
+      const r = normalizeRows(prices.map((p) => row({ balance: 100, price: p })));
+      expect(r.rows).toHaveLength(1);
+      expect(r.rows[0].currency.price_usd).toBe(10);
+      expect(r.conflicts).toBe(1);
+      expect(r.duplicates).toBe(0);
+    }
+  });
+
+  it("gives the same result for any permutation of the rows", () => {
+    const rows = [row({ balance: 5 }), row({ balance: 8, price: 3 }), row({ balance: 8, price: 2 }), row({ token: 2 }), row({ balance: 5 })];
+    const pick = (rs: AssetRow[]) => {
+      const n = normalizeRows(rs);
+      return JSON.stringify([n.rows.map((x) => [x.currency.crypto_id, x.balance, x.currency.price_usd]).sort(), n.conflicts + n.duplicates]);
+    };
+    const expected = pick(rows);
+    for (let i = 0; i < 20; i++) {
+      const shuffled = [...rows].sort(() => (Math.sin(i * 7919 + rows.length) > 0 ? 1 : -1));
+      expect(pick(shuffled)).toBe(expected);
+    }
+    expect(pick([...rows].reverse())).toBe(expected);
+  });
+
   it("keeps different tokens in the same wallet", () => {
     expect(normalizeRows([row({ token: 1 }), row({ token: 2 })]).rows).toHaveLength(2);
   });

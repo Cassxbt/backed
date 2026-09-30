@@ -12,6 +12,17 @@ export function walletKey(address: string): string {
   return EVM_ADDRESS.test(address) ? address.toLowerCase() : address;
 }
 
+// Rank used to pick one row from a conflict, so the result does not depend on the order CMC returns rows in.
+function rank(r: AssetRow): [number, number] {
+  return [r.balance, r.currency.price_usd ?? -1];
+}
+
+function wins(a: AssetRow, b: AssetRow) {
+  const [ab, ap] = rank(a);
+  const [bb, bp] = rank(b);
+  return ab > bb || (ab === bb && ap > bp);
+}
+
 export function normalizeRows(raw: AssetRow[]) {
   const byKey = new Map<string, AssetRow>();
   let duplicates = 0;
@@ -30,12 +41,13 @@ export function normalizeRows(raw: AssetRow[]) {
     const prev = byKey.get(key);
     if (!prev) {
       byKey.set(key, r);
-    } else if (prev.balance === r.balance) {
+    } else if (prev.balance === r.balance && prev.currency.price_usd === price) {
       duplicates++;
     } else {
-      // Two balances for one wallet and token cannot both be current; keep the larger so the reported total is not understated.
+      // Two observations for one wallet and token cannot both be current. Keep the larger balance, then the higher price,
+      // so the reported total is not understated and the choice is the same whatever order the rows arrive in.
       conflicts++;
-      if (r.balance > prev.balance) byKey.set(key, r);
+      if (wins(r, prev)) byKey.set(key, r);
     }
   }
 
