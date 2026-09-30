@@ -25,6 +25,11 @@ jobs:
       - run: npm run snapshot
         env:
           CMC_PRO_API_KEY: ${{ secrets.CMC_PRO_API_KEY }}
+      - run: npm run replay
+      - run: npm run verify
+        env:
+          CMC_PRO_API_KEY: ${{ secrets.CMC_PRO_API_KEY }}
+      - run: npm run build
       - name: Commit data
         run: |
           git config user.name "github-actions[bot]"
