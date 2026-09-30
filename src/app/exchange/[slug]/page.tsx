@@ -87,7 +87,7 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
             value={usd(e.exemptUsd)}
             share={share(e.exemptUsd)}
             body="Stablecoins and wrapped or staked tokens. Their value depends on redemption, which market data cannot test, so they are not counted as passing."
-            field="tags: stablecoin, wrapped, staked"
+            field="tags: stablecoin, wrapped, staked, rehypothecated"
           />
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">

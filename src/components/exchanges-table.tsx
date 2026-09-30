@@ -29,7 +29,7 @@ const columns: { key: Key; label: string; format: (r: ExchangeRow) => string; nu
   { key: "exemptShare", label: "Exempt share", format: (r) => pct(r.exemptShare), numeric: true },
   { key: "cover", label: "OI ÷ reserves", format: (r) => ratio(r.cover), numeric: true },
   { key: "wallets", label: "Wallets", format: (r) => String(r.wallets), numeric: true },
-  { key: "audited", label: "Audit flag", format: (r) => (r.audited ? "Yes" : "No"), numeric: true },
+  { key: "audited", label: "CMC audit flag", format: (r) => (r.audited ? "Yes" : "No"), numeric: true },
 ];
 
 function compare(a: ExchangeRow, b: ExchangeRow, key: Key) {

@@ -1,0 +1,82 @@
+{
+  "btcAddresses": {
+    "call": "GET /v1/exchange/assets?id=270",
+    "at": "2026-09-30T09:23:03.964Z",
+    "btcRows": 39,
+    "legacy": 30,
+    "lowercased": 18
+  },
+  "zeroOpenInterest": {
+    "call": "GET /v5/exchange/derivatives/list?limit=500",
+    "at": "2026-09-30T09:23:04.507Z",
+    "exchanges": [
+      {
+        "slug": "4e",
+        "name": "4E",
+        "derivativeVolumeUsd": 23111606804.24357
+      },
+      {
+        "slug": "msx",
+        "name": "MSX",
+        "derivativeVolumeUsd": 5971824041.967594
+      },
+      {
+        "slug": "koinbay",
+        "name": "Koinbay",
+        "derivativeVolumeUsd": 4709343752.560294
+      },
+      {
+        "slug": "oneex",
+        "name": "OneEx",
+        "derivativeVolumeUsd": 1906055215.4973319
+      },
+      {
+        "slug": "bitflyer",
+        "name": "bitFlyer",
+        "derivativeVolumeUsd": 67492476.18126653
+      },
+      {
+        "slug": "derive",
+        "name": "Derive",
+        "derivativeVolumeUsd": 26748442.07451722
+      },
+      {
+        "slug": "gleec-btc",
+        "name": "Gleec BTC",
+        "derivativeVolumeUsd": 13643314.57223475
+      },
+      {
+        "slug": "woox",
+        "name": "WOO X",
+        "derivativeVolumeUsd": 7466240.78276757
+      },
+      {
+        "slug": "coinmy",
+        "name": "CoinMy",
+        "derivativeVolumeUsd": 1223408.79139906
+      },
+      {
+        "slug": "bibox",
+        "name": "Bibox",
+        "derivativeVolumeUsd": 0
+      },
+      {
+        "slug": "bitmex",
+        "name": "BitMEX",
+        "derivativeVolumeUsd": 0
+      }
+    ]
+  },
+  "largestPairOpenInterest": {
+    "call": "GET /v5/cryptocurrency/derivatives/market-pairs/list/latest?crypto_id=1&limit=250",
+    "at": "2026-09-30T09:23:06.342Z",
+    "exchange": "WOO X Pro",
+    "pair": "BTC/USD",
+    "openInterestUsd": 12128849217213.188,
+    "outlierDetected": false,
+    "exclusions": [
+      "price",
+      "volume"
+    ]
+  }
+}

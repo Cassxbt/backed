@@ -136,15 +136,15 @@
 :root {
   --backed: oklch(0.8 0.008 80);
   --unverified: #2a78d6;
-  --thin: #eb6834;
-  --excess: #1baf7a;
+  --thin: #1baf7a;
+  --excess: #eb6834;
 }
 
 .dark {
   --backed: oklch(0.42 0.006 80);
   --unverified: #3987e5;
-  --thin: #d95926;
-  --excess: #199e70;
+  --thin: #199e70;
+  --excess: #d95926;
 }
 
 .bg-exempt {

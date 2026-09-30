@@ -12,6 +12,7 @@ import { callCounts, flaggedUsd, getExchange, refusals, snapshot, summary, toCar
 import { num, pct, usd, utc } from "@/lib/format";
 
 const PICKS = ["mexc", "weex", "binance", "coinbase-exchange", "lbank"];
+const FLAG_SHARE_SHOWN = 0.005;
 
 export default function Home() {
   const s = summary();
@@ -32,7 +33,7 @@ export default function Home() {
     }));
 
   const flaggedRows = xs
-    .filter((e) => share(flaggedUsd(e), e.reportedUsd) >= 0.01)
+    .filter((e) => share(flaggedUsd(e), e.reportedUsd) >= FLAG_SHARE_SHOWN)
     .sort((a, b) => share(flaggedUsd(b), b.reportedUsd) - share(flaggedUsd(a), a.reportedUsd))
     .map(toCard);
 
@@ -73,7 +74,7 @@ export default function Home() {
     {
       n: "04",
       title: "Exempt, not evaluated",
-      rule: "tags: stablecoin, wrapped, staked",
+      rule: "tags: stablecoin, wrapped, staked, rehypothecated",
       body: "Stablecoins and wrapped or staked tokens get their value from redemption, which market data cannot test. They are checked for unverified supply only, and otherwise shown as exempt rather than passed.",
     },
   ];
@@ -95,7 +96,7 @@ export default function Home() {
           <p className="mt-5 max-w-xl text-lg text-pretty text-muted-foreground">
             CoinMarketCap already shows what each exchange&apos;s disclosed wallets hold. Backed checks every holding
             against CoinMarketCap&apos;s supply, market and derivatives data, and shows which part of the reported figure
-            that data does not support.
+            that data cannot confirm.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
@@ -128,13 +129,13 @@ export default function Home() {
 
       <Section
         eyebrow="The problem"
-        title="A reserve figure is balances times prices. Nothing checks them against each other."
+        title="A reserve figure is balances times prices. CoinMarketCap's reserve page does not check one against the other."
         lead={
           <p>
             The figure multiplies each disclosed wallet balance by a price. It includes tokens whose supply CoinMarketCap
             has not verified, holdings larger than the supply CoinMarketCap counts as circulating, and tokens that barely
             trade. CoinMarketCap&apos;s exchange pages show the allocation. They do not show which parts of it
-            CoinMarketCap&apos;s own supply and market data contradict.
+            CoinMarketCap&apos;s own supply data leaves unverified or contradicts.
           </p>
         }
         aside={
@@ -154,10 +155,10 @@ export default function Home() {
       <Section
         id="findings"
         eyebrow="Finding 1"
-        title="Where the reported figure rests on holdings CoinMarketCap's data does not support."
+        title="Where the reported figure rests on holdings CoinMarketCap's own data cannot confirm."
         lead={
           <p>
-            {flaggedRows.length} exchanges have 1% or more of their reported reserves flagged, sorted by flagged share.
+            {flaggedRows.length} exchanges have {pct(FLAG_SHARE_SHOWN)} or more of their reported reserves flagged, sorted by flagged share.
             The other {xs.length - flaggedRows.length} have less. Across all exchanges, {pct(share(s.exempt, s.reported), 0)}{" "}
             of reported value is exempt and shown as not evaluated.
           </p>
@@ -260,7 +261,7 @@ export default function Home() {
       <Section
         id="proof"
         eyebrow="Proof"
-        title="Every number comes from these calls, and every total replays offline."
+        title="Every figure on this page comes from these calls, and every total replays offline."
         lead={
           <p>
             One snapshot is {snapshot.calls.length} calls and {snapshot.credits} credits on the free Basic plan, taken{" "}
@@ -308,9 +309,10 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
                 {verification ? (
                   <>
                     <code className="font-mono text-xs">npm run verify</code> re-fetched {verification.results.length}{" "}
-                    exchanges at {utc(verification.at)} and recomputed them with separate code. It matched this snapshot
-                    within {pct(verification.maxDiff, 2)} of reserves, under a {pct(verification.tolerance, 0)} tolerance
-                    for price movement. It fails if an exchange is missing or a figure differs by more.
+                    exchanges at {utc(verification.at)} and recomputed them with separate code. Every reported, flagged and
+                    exempt figure matched this snapshot within {pct(verification.maxDiff, 2)}, under a{" "}
+                    {pct(verification.tolerance, 0)} tolerance for price movement. It fails if an exchange is missing or any
+                    figure differs by more.
                   </>
                 ) : (
                   <>Live verification has not been run against this snapshot.</>
@@ -326,7 +328,7 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
           <Boundary
             title="What it shows"
             items={[
-              "Which parts of a reported reserve CoinMarketCap's own supply and market data do not support.",
+              "Which parts of a reported reserve CoinMarketCap's own supply and market data cannot confirm.",
               "Futures exposure next to the reserves an exchange discloses.",
               "The CoinMarketCap rows and calls behind every figure.",
             ]}
@@ -347,7 +349,13 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
         id="exchanges"
         eyebrow="All exchanges"
         title="Every exchange with wallets in the API."
-        lead={<p>Sort by any column. Open an exchange for its holdings, flags and the calls behind them.</p>}
+        lead={
+          <p>
+            Sort by any column. Open an exchange for its holdings, flags and the calls behind them. None of the{" "}
+            {xs.length} carries CoinMarketCap&apos;s audit flag; all {refused.filter((r) => r.audited).length} exchanges that
+            do return no wallets.
+          </p>
+        }
       >
         <ExchangesTable rows={tableRows} />
       </Section>

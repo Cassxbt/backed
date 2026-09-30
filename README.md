@@ -2,7 +2,7 @@
 
 **Exchange reserves, checked against CoinMarketCap's own data.**
 
-CoinMarketCap already shows what each exchange's disclosed wallets hold. Backed checks every holding against CoinMarketCap's supply, market and derivatives data, and shows which part of the reported figure that data does not support. Every number comes from CoinMarketCap fields, every flag links to the fields that caused it, and every total replays offline.
+CoinMarketCap already shows what each exchange's disclosed wallets hold. Backed checks every holding against CoinMarketCap's supply, market and derivatives data, and shows which part of the reported figure that data cannot confirm. Every number comes from CoinMarketCap fields, every flag links to the fields that caused it, and every total replays offline.
 
 Built for **Build with CMC: API Hackathon**, Data and Visualisation track. `#BuildwithCMC`
 
@@ -110,7 +110,8 @@ Both responses are trimmed to the fields Backed reads. Each exchange page lists 
 |---|---|---|---|
 | `npm test` | No | 33 unit tests, including replay of the shipped snapshot and three tamper cases | Any rule, normalisation or replay test breaks |
 | `npm run replay` | No | Recomputes all 71 exchanges from `data/snapshot.json`, which ships every holding | Any stored total differs from the replay, or the buckets do not sum to the reported figure |
-| `npm run verify` | Yes, about 20 credits | Re-fetches 7 exchanges and recomputes them with separate code that does not import the checks | An exchange is missing, or reported, flagged or exempt value differs by more than 1% of reserves |
+| `npm run verify` | Yes, about 20 credits | Re-fetches 7 exchanges and recomputes them with separate code that does not import the checks | An exchange is missing, or any reported, flagged or exempt figure differs from the snapshot by more than 1% of itself ($1M floor) |
+| `npm run evidence` | Yes, 3 credits | Recaptures the live reproductions behind the API notes | Any request fails |
 | `npm run snapshot` | Yes, about 110 credits | Rebuilds the data | Any request fails after retries, the exchange list hits the page limit, or a balance or price is negative or non-finite. Nothing is written |
 
 At 2026-09-30 06:36 UTC, `npm run verify` passed against this snapshot. The site shows the verify result only when it matches the current snapshot and method version.
@@ -119,16 +120,16 @@ At 2026-09-30 06:36 UTC, `npm run verify` passed against this snapshot. The site
 
 It made possible: wallet-level reserves with prices from one endpoint, verified supply next to self-reported supply, and open interest per exchange, all on the Basic plan at about 110 credits per full refresh.
 
-Where it got in the way, each reproduced against the live API (details on the `/api-notes` page):
+Where it got in the way, each reproduced against the live API. The `/api-notes` page gives the exact call and capture time for every item, computed from `data/snapshot.json` and `data/evidence.json` (`npm run evidence` recaptures the live ones):
 
 1. Every exchange marked as audited returns no wallets from `exchange/assets`.
-2. Reserve totals count tokens with unverified supply at full price.
+2. Reserve totals count tokens with unverified supply at full price. This accounts for most of what Backed flags.
 3. Binance's USDS rows are mapped to crypto_id 33452 (TheStandard USD) instead of 33039 (USDS).
-4. Reserve rows carry no timestamp, and the documented delay cannot be measured.
-5. 18 of Binance's 29 legacy Bitcoin addresses come back lowercased, which breaks base58 lookups.
+4. Reserve rows carry no timestamp, so the documented delay cannot be measured.
+5. Many of Binance's legacy Bitcoin addresses come back lowercased, which breaks base58 lookups.
 6. Responses contain duplicate rows, and some wallet and token pairs come back with two different balances.
-7. `open_interest_usd` is exactly 0 for exchanges with billions in derivatives volume, and changes between refreshes.
-8. WOO X Pro BTC/USD reports about $12.7 trillion of open interest, with `outlier_detected: false`.
+7. `open_interest_usd` is exactly 0 for exchanges with billions in derivatives volume, and which ones changes between refreshes.
+8. A single BTC perpetual pair reports trillions of dollars of open interest, with `outlier_detected: false`.
 9. `funding_rate` has no settlement interval.
 10. `market-pairs/latest`, which would give real depth, is not on the Basic plan.
 
@@ -150,6 +151,7 @@ scripts/cmc.ts        API client: rate limit, timeouts, retries, call log
 scripts/snapshot.ts   pipeline: map → info → assets → quotes → derivatives
 scripts/verify.ts     live recompute with separate code
 scripts/replay.ts     offline recompute of every exchange
+scripts/evidence.ts   captures the API-note reproductions
 src/lib/checks.ts     the checks, pure functions
 src/lib/rows.ts       duplicate and conflict handling, input validation
 src/lib/replay.ts     replay used by the tests and the replay command

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "snapshot": "tsx scripts/snapshot.ts",
     "verify": "tsx scripts/verify.ts",
-    "replay": "tsx scripts/replay.ts"
+    "replay": "tsx scripts/replay.ts",
+    "evidence": "tsx scripts/evidence.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

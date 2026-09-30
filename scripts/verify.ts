@@ -10,6 +10,7 @@ import type { Snapshot } from "../src/lib/snapshot";
 const SLUGS = ["lbank", "weex", "mexc", "gate", "binance", "blockfinex", "htx"];
 const REDEEMABLE = ["stablecoin", "wrapped-tokens", "liquid-staking-derivatives", "rehypothecated-crypto"];
 const TOLERANCE = 0.01;
+const FLOOR_USD = 1_000_000;
 
 type Row = { wallet_address: string; balance: number; platform: { crypto_id: number }; currency: { crypto_id: number; price_usd: number | null } };
 type Quote = { circulating_supply: number | null; num_market_pairs: number | null; tags: { slug: string }[] | null };
@@ -67,7 +68,8 @@ async function main() {
     }
 
     const savedFlagged = saved.unverifiedUsd + saved.thinUsd + saved.excessUsd;
-    const diff = (a: number, b: number) => Math.abs(a - b) / saved.reportedUsd;
+    // Each figure is compared with itself, so a large error in a small flagged total cannot hide behind total reserves.
+    const diff = (a: number, b: number) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), FLOOR_USD);
     const r = {
       slug,
       reported: { snapshot: saved.reportedUsd, recomputed: reported, diff: diff(reported, saved.reportedUsd) },
@@ -75,7 +77,7 @@ async function main() {
       exempt: { snapshot: saved.exemptUsd, recomputed: exempt, diff: diff(exempt, saved.exemptUsd) },
     };
     for (const k of ["reported", "flagged", "exempt"] as const) {
-      if (r[k].diff > TOLERANCE) problems.push(`${slug} ${k} differs by ${(r[k].diff * 100).toFixed(2)}% of reserves`);
+      if (r[k].diff > TOLERANCE) problems.push(`${slug} ${k} differs by ${(r[k].diff * 100).toFixed(2)}%`);
     }
     results.push(r);
   }
@@ -85,7 +87,7 @@ async function main() {
   writeFileSync(
     "data/verify.json",
     JSON.stringify(
-      { at: new Date().toISOString(), snapshotAt: snapshot.generatedAt, methodVersion: METHOD_VERSION, tolerance: TOLERANCE, passed, maxDiff, problems, credits: cmc.credits, results },
+      { at: new Date().toISOString(), snapshotAt: snapshot.generatedAt, methodVersion: METHOD_VERSION, tolerance: TOLERANCE, floorUsd: FLOOR_USD, passed, maxDiff, problems, credits: cmc.credits, results },
       null,
       2,
     ),
@@ -93,7 +95,7 @@ async function main() {
 
   for (const r of results) {
     console.log(
-      `${r.slug.padEnd(12)} reported ${(r.reported.diff * 100).toFixed(3)}%  flagged ${(r.flagged.diff * 100).toFixed(3)}%  exempt ${(r.exempt.diff * 100).toFixed(3)}% of reserves`,
+      `${r.slug.padEnd(12)} reported ${(r.reported.diff * 100).toFixed(3)}%  flagged ${(r.flagged.diff * 100).toFixed(3)}%  exempt ${(r.exempt.diff * 100).toFixed(3)}%`,
     );
   }
   console.log(`${passed ? "PASS" : "FAIL"} max difference ${(maxDiff * 100).toFixed(3)}%, ${cmc.credits} credits`);
