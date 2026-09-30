@@ -23,6 +23,28 @@ describe("normalizeRows", () => {
     expect(r.conflicts).toBe(0);
   });
 
+  it("folds an EVM address with an uppercase 0X prefix", () => {
+    const r = normalizeRows([row({ address: "0xabc0000000000000000000000000000000000001" }), row({ address: "0XABC0000000000000000000000000000000000001" })]);
+    expect(r.rows).toHaveLength(1);
+    expect(r.duplicates).toBe(1);
+  });
+
+  it("counts duplicates and conflicts the same way in every order", () => {
+    const a = row({ balance: 100 });
+    const b = row({ balance: 200 });
+    const orders = [[a, a, b], [a, b, a], [b, a, a]];
+    for (const o of orders) {
+      const r = normalizeRows(o);
+      expect([r.duplicates, r.conflicts, r.rows[0].balance]).toEqual([1, 1, 200]);
+    }
+  });
+
+  it("breaks a full tie on the address text, not the row order", () => {
+    const upper = row({ address: "0xABC0000000000000000000000000000000000001" });
+    const lower = row({ address: "0xabc0000000000000000000000000000000000001" });
+    expect(normalizeRows([upper, lower]).rows[0].wallet_address).toBe(normalizeRows([lower, upper]).rows[0].wallet_address);
+  });
+
   it("keeps case-sensitive addresses distinct", () => {
     const r = normalizeRows([row({ address: "3FJ9abc" }), row({ address: "3fj9abc" })]);
     expect(r.rows).toHaveLength(2);
@@ -67,6 +89,7 @@ describe("normalizeRows", () => {
     expect(() => normalizeRows([row({ balance: -1 })])).toThrow();
     expect(() => normalizeRows([row({ balance: Number.NaN })])).toThrow();
     expect(() => normalizeRows([row({ price: Number.POSITIVE_INFINITY })])).toThrow();
+    expect(() => normalizeRows([{ ...row({}), balance: "5" as unknown as number }])).toThrow();
   });
 
   it("allows a missing price", () => {

@@ -8,7 +8,7 @@ import type { Snapshot } from "../src/lib/snapshot";
 // Recomputes a sample of exchanges from fresh API calls without src/lib/checks.ts or src/lib/rows.ts,
 // so a mistake there cannot hide itself. Exits non-zero on any missing exchange or a difference above tolerance.
 
-const SLUGS = ["lbank", "weex", "mexc", "gate", "binance", "blockfinex", "htx"];
+const SLUGS = ["lbank", "weex", "mexc", "gate", "binance", "blockfinex", "htx", "kucoin"];
 const REDEEMABLE = ["stablecoin", "wrapped-tokens", "liquid-staking-derivatives", "rehypothecated-crypto"];
 const TOLERANCE = 0.01;
 const FLOOR_USD = 1_000_000;
@@ -46,6 +46,12 @@ async function main() {
 
     const raw = await cmc.get<Row[]>("/v1/exchange/assets", { id: saved.id });
     if (!Array.isArray(raw)) throw new Error(`${slug} assets is not a list`);
+    const bad = raw.find(
+      (r) =>
+        !(Number.isFinite(r?.balance) && r.balance >= 0) ||
+        !(r.currency?.price_usd === null || (Number.isFinite(r.currency?.price_usd) && r.currency.price_usd! >= 0)),
+    );
+    if (bad) throw new Error(`${slug} returned a row with a non-numeric balance or price`);
     const rows = dedupe(raw);
     const balance = new Map<number, number>();
     const value = new Map<number, number>();
@@ -84,7 +90,8 @@ async function main() {
       exempt: { snapshot: saved.exemptUsd, recomputed: exempt, diff: diff(exempt, saved.exemptUsd) },
     };
     for (const k of ["reported", "flagged", "exempt"] as const) {
-      if (r[k].diff > TOLERANCE) problems.push(`${slug} ${k} differs by ${(r[k].diff * 100).toFixed(2)}%`);
+      // Written so that NaN fails: NaN <= x is false.
+      if (!(r[k].diff <= TOLERANCE)) problems.push(`${slug} ${k} differs by ${(r[k].diff * 100).toFixed(2)}%`);
     }
     results.push(r);
   }

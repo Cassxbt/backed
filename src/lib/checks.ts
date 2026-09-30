@@ -1,6 +1,6 @@
 import type { ExchangeInput, ExchangeResult, Holding, HoldingResult, Token } from "./types";
 
-export const METHOD_VERSION = "checks-v5";
+export const METHOD_VERSION = "checks-v6";
 export const THIN_MARKET_PAIRS = 2;
 
 const REDEEMABLE_TAGS = ["stablecoin", "wrapped-tokens", "liquid-staking-derivatives", "rehypothecated-crypto"];
