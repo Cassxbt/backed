@@ -1,59 +1,61 @@
 {
   "btcAddresses": {
     "call": "GET /v1/exchange/assets?id=270",
-    "at": "2026-09-30T09:23:03.964Z",
-    "btcRows": 39,
+    "at": "2026-09-30T20:49:04.676Z",
     "legacy": 30,
-    "lowercased": 18
+    "allLowercase": 18,
+    "failChecksum": 18,
+    "allLowercaseFailChecksum": 18,
+    "mixedCaseFailChecksum": 0
   },
   "zeroOpenInterest": {
     "call": "GET /v5/exchange/derivatives/list?limit=500",
-    "at": "2026-09-30T09:23:04.507Z",
+    "at": "2026-09-30T20:49:06.582Z",
     "exchanges": [
-      {
-        "slug": "4e",
-        "name": "4E",
-        "derivativeVolumeUsd": 23111606804.24357
-      },
       {
         "slug": "msx",
         "name": "MSX",
-        "derivativeVolumeUsd": 5971824041.967594
+        "derivativeVolumeUsd": 8060567357.3555155
+      },
+      {
+        "slug": "4e",
+        "name": "4E",
+        "derivativeVolumeUsd": 6368616076.261845
       },
       {
         "slug": "koinbay",
         "name": "Koinbay",
-        "derivativeVolumeUsd": 4709343752.560294
+        "derivativeVolumeUsd": 5686181490.757755
       },
       {
         "slug": "oneex",
         "name": "OneEx",
-        "derivativeVolumeUsd": 1906055215.4973319
+        "derivativeVolumeUsd": 2140955126.5865867
       },
       {
         "slug": "bitflyer",
         "name": "bitFlyer",
-        "derivativeVolumeUsd": 67492476.18126653
+        "derivativeVolumeUsd": 82538150.58087485
       },
       {
         "slug": "derive",
         "name": "Derive",
-        "derivativeVolumeUsd": 26748442.07451722
+        "derivativeVolumeUsd": 60757945.70365437
       },
       {
         "slug": "gleec-btc",
         "name": "Gleec BTC",
-        "derivativeVolumeUsd": 13643314.57223475
+        "derivativeVolumeUsd": 16485797.13019845
       },
       {
         "slug": "woox",
         "name": "WOO X",
-        "derivativeVolumeUsd": 7466240.78276757
+        "derivativeVolumeUsd": 14904721.7699365
       },
       {
         "slug": "coinmy",
         "name": "CoinMy",
-        "derivativeVolumeUsd": 1223408.79139906
+        "derivativeVolumeUsd": 1236327.56787735
       },
       {
         "slug": "bibox",
@@ -69,14 +71,42 @@
   },
   "largestPairOpenInterest": {
     "call": "GET /v5/cryptocurrency/derivatives/market-pairs/list/latest?crypto_id=1&limit=250",
-    "at": "2026-09-30T09:23:06.342Z",
+    "at": "2026-09-30T20:49:07.905Z",
     "exchange": "WOO X Pro",
     "pair": "BTC/USD",
-    "openInterestUsd": 12128849217213.188,
+    "openInterestUsd": 13858749587866.336,
     "outlierDetected": false,
     "exclusions": [
       "price",
       "volume"
-    ]
-  }
+    ],
+    "totalMarketCapUsd": 2865427039937.818,
+    "totalMarketCapCall": "GET /v1/global-metrics/quotes/latest"
+  },
+  "fundingFields": {
+    "call": "GET /v5/cryptocurrency/derivatives/market-pairs/list/latest?crypto_id=1&limit=250",
+    "at": "2026-09-30T20:49:07.905Z",
+    "pairs": 190,
+    "withFundingRate": 188,
+    "fundingKeys": [
+      "exchange_reported_quotes.funding_rate"
+    ],
+    "intervalKeys": []
+  },
+  "depth": [
+    {
+      "call": "GET /v2/cryptocurrency/market-pairs/latest?id=1",
+      "at": "2026-09-30T20:49:10.206Z",
+      "httpStatus": 403,
+      "errorCode": 1006,
+      "errorMessage": "Your API Key subscription plan doesn't support this endpoint."
+    },
+    {
+      "call": "GET /v1/exchange/market-pairs/latest?id=270",
+      "at": "2026-09-30T20:49:10.888Z",
+      "httpStatus": 403,
+      "errorCode": 1006,
+      "errorMessage": "Your API Key subscription plan doesn't support this endpoint."
+    }
+  ]
 }

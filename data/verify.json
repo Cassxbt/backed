@@ -1,24 +1,26 @@
 {
-  "at": "2026-09-30T18:50:14.203Z",
-  "snapshotAt": "2026-09-30T18:49:30.173Z",
-  "methodVersion": "checks-v4",
+  "at": "2026-09-30T20:53:47.891Z",
+  "snapshotAt": "2026-09-30T20:53:10.949Z",
+  "snapshotSha256": "a4d13b7318195a631c70f7b01adf86eb4eee0e8e8c3a003c3d99d5fac9e790cb",
+  "inputsSha256": "86eebf6408114f6bbbc79da08031a904bc795fe9d8737dbffb4e9ced252e75e5",
+  "methodVersion": "checks-v5",
   "tolerance": 0.01,
   "floorUsd": 1000000,
   "passed": true,
-  "maxDiff": 0.0013752439585392612,
+  "maxDiff": 0.0011890623804036156,
   "problems": [],
   "credits": 21,
   "results": [
     {
       "slug": "lbank",
       "reported": {
-        "snapshot": 555614985.0743765,
-        "recomputed": 555614985.0743763,
-        "diff": 2.1455376970227595e-16
+        "snapshot": 555092705.4905663,
+        "recomputed": 555092705.4905663,
+        "diff": 0
       },
       "flagged": {
-        "snapshot": 541881258.5253544,
-        "recomputed": 541881258.5253544,
+        "snapshot": 541331422.9767953,
+        "recomputed": 541331422.9767953,
         "diff": 0
       },
       "exempt": {
@@ -30,86 +32,86 @@
     {
       "slug": "weex",
       "reported": {
-        "snapshot": 225762050.51317358,
-        "recomputed": 225762050.51317358,
-        "diff": 0
+        "snapshot": 225307829.05982202,
+        "recomputed": 225307829.05982205,
+        "diff": 1.3227379852735797e-16
       },
       "flagged": {
-        "snapshot": 110721183.81330004,
-        "recomputed": 110721183.81330004,
+        "snapshot": 110440404.74915539,
+        "recomputed": 110440404.74915539,
         "diff": 0
       },
       "exempt": {
-        "snapshot": 31143518.144766625,
-        "recomputed": 31143518.144766625,
+        "snapshot": 31139515.698856175,
+        "recomputed": 31139515.698856175,
         "diff": 0
       }
     },
     {
       "slug": "mexc",
       "reported": {
-        "snapshot": 5297865142.547597,
-        "recomputed": 5297321159.0903845,
-        "diff": 0.00010267974789385852
+        "snapshot": 5295020232.945357,
+        "recomputed": 5294585996.476748,
+        "diff": 0.00008200846257528123
       },
       "flagged": {
-        "snapshot": 531996267.72075665,
-        "recomputed": 532067672.32577,
-        "diff": 0.00013420211136160043
+        "snapshot": 531521400.753215,
+        "recomputed": 531469924.18910855,
+        "diff": 0.00009684758512736708
       },
       "exempt": {
-        "snapshot": 3054685719.5941877,
-        "recomputed": 3054535037.4961143,
-        "diff": 0.000049328183618673705
+        "snapshot": 3054185740.7505093,
+        "recomputed": 3054492547.2223406,
+        "diff": 0.00010044433472601591
       }
     },
     {
       "slug": "gate",
       "reported": {
-        "snapshot": 7266987423.841867,
-        "recomputed": 7266987423.8418665,
-        "diff": 1.3123379204942496e-16
+        "snapshot": 7259523561.065026,
+        "recomputed": 7259523561.065028,
+        "diff": 2.627374395534956e-16
       },
       "flagged": {
-        "snapshot": 71299485.92145659,
-        "recomputed": 71299485.92145659,
+        "snapshot": 71642443.16587359,
+        "recomputed": 71642443.16587359,
         "diff": 0
       },
       "exempt": {
-        "snapshot": 1676598566.1886501,
-        "recomputed": 1676598566.1886501,
-        "diff": 0
+        "snapshot": 1675948393.9962368,
+        "recomputed": 1675948393.996237,
+        "diff": 1.422589024552613e-16
       }
     },
     {
       "slug": "binance",
       "reported": {
-        "snapshot": 173038629281.0362,
-        "recomputed": 172988995885.73276,
-        "diff": 0.00028683419135750024
+        "snapshot": 172956855590.04,
+        "recomputed": 172941937261.79663,
+        "diff": 0.00008625462224370353
       },
       "flagged": {
-        "snapshot": 8110215.761372081,
-        "recomputed": 8099062.236143804,
-        "diff": 0.0013752439585392612
+        "snapshot": 8034425.261566471,
+        "recomputed": 8024871.828739778,
+        "diff": 0.0011890623804036156
       },
       "exempt": {
-        "snapshot": 56704889318.871956,
-        "recomputed": 56705870745.80941,
-        "diff": 0.000017307325053760003
+        "snapshot": 56717851664.486404,
+        "recomputed": 56721922750.94491,
+        "diff": 0.0000717727161044784
       }
     },
     {
       "slug": "blockfinex",
       "reported": {
-        "snapshot": 1444245673.0085754,
-        "recomputed": 1444245673.0085754,
-        "diff": 0
+        "snapshot": 1444455141.807173,
+        "recomputed": 1444517428.3487844,
+        "diff": 0.000043119273183593394
       },
       "flagged": {
-        "snapshot": 1444245673.0085754,
-        "recomputed": 1444245673.0085754,
-        "diff": 0
+        "snapshot": 1444455141.807173,
+        "recomputed": 1444517428.3487844,
+        "diff": 0.000043119273183593394
       },
       "exempt": {
         "snapshot": 0,
@@ -120,9 +122,9 @@
     {
       "slug": "htx",
       "reported": {
-        "snapshot": 3426909030.912054,
-        "recomputed": 3425886346.6126685,
-        "diff": 0.0002984276180547943
+        "snapshot": 3423496879.4954524,
+        "recomputed": 3423496879.495453,
+        "diff": 1.3928365498419855e-16
       },
       "flagged": {
         "snapshot": 0,
@@ -130,9 +132,9 @@
         "diff": 0
       },
       "exempt": {
-        "snapshot": 1356013770.633302,
-        "recomputed": 1355984635.0435796,
-        "diff": 0.000021486204899517862
+        "snapshot": 1353465923.9678547,
+        "recomputed": 1353465923.9678547,
+        "diff": 0
       }
     }
   ]
