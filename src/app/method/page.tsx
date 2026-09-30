@@ -108,10 +108,12 @@ export default function MethodPage() {
       </ol>
       <p className="mt-4 text-sm text-pretty text-muted-foreground">
         The current snapshot ran from {utc(snapshot.startedAt)} to {utc(snapshot.generatedAt)} with {snapshot.calls.length}{" "}
-        calls and {snapshot.credits} credits on the free Basic plan, method {METHOD_VERSION}. Every CoinMarketCap response the
-        checks read is kept in <code>data/inputs.json</code>, whose SHA-256 is recorded in the snapshot.{" "}
-        <code>npm run replay</code> rebuilds <code>data/snapshot.json</code> from it offline and fails unless every field
-        matches exactly.
+        calls and {snapshot.credits} credits on the free Basic plan, method {METHOD_VERSION}. <code>data/inputs.json</code> keeps every
+        wallet row exactly as CoinMarketCap returned it, plus the supply, market, open-interest and liquidation fields the
+        checks read; its SHA-256 is recorded in the snapshot. <code>npm run replay</code> rebuilds{" "}
+        <code>data/snapshot.json</code> from it offline and fails unless every field matches exactly. Replay proves the
+        figures follow from those inputs. It cannot prove the inputs are what CoinMarketCap served, or re-derive which
+        exchanges report reserves; <code>npm run verify</code>, run with your own key, checks a sample against the live API.
       </p>
     </article>
   );

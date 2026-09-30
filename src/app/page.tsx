@@ -304,10 +304,10 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
             ))}
             <div className="space-y-2 bg-card px-4 py-3 text-sm text-pretty text-muted-foreground">
               <p>
-                <code className="font-mono text-xs">npm run replay</code> rebuilds the whole snapshot from the captured
-                CoinMarketCap responses (<code className="font-mono text-xs">data/inputs.json</code>, sha256{" "}
-                {snapshot.inputsSha256.slice(0, 12)}), offline and without a key, and fails unless every field matches
-                exactly. Each exchange page has a receipt that replays on its own.
+                <code className="font-mono text-xs">npm run replay</code> rebuilds the whole snapshot from its inputs
+                (<code className="font-mono text-xs">data/inputs.json</code>, sha256 {snapshot.inputsSha256.slice(0, 12)}:
+                wallet rows as returned, plus the CoinMarketCap fields the checks read), offline and without a key, and fails
+                unless every field matches exactly. Each exchange page has a receipt that replays on its own.
               </p>
               <p>
                 {verification ? (
@@ -316,7 +316,7 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
                     exchanges at {utc(verification.at)} and recomputed them with separate code. Every reported, flagged and
                     exempt figure matched this snapshot within {pct(verification.maxDiff, 2)}, under a{" "}
                     {pct(verification.tolerance, 0)} tolerance for price movement. It fails if an exchange is missing or any
-                    figure differs by more.
+                    figure differs by more. Run it with your own key to check this yourself.
                   </>
                 ) : (
                   <>Live verification has not been run against this snapshot.</>

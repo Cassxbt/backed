@@ -14,7 +14,7 @@ const instrumentSerif = Instrument_Serif({ variable: "--font-instrument-serif", 
 export const metadata: Metadata = {
   title: "Backed — what exchange reserves are made of",
   description:
-    "Four checks on every exchange that reports proof-of-reserves to CoinMarketCap, built only on CoinMarketCap data.",
+    "Every exchange reserve CoinMarketCap publishes, checked against CoinMarketCap's own supply, market and derivatives data.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
