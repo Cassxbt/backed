@@ -18,12 +18,14 @@ if (arg) {
   const receipt: Receipt = JSON.parse(read(arg));
   const { problems, linked } = replayReceipt(receipt, existsSync("data/inputs.json") ? read("data/inputs.json") : undefined);
   if (problems.length > 0) fail(problems);
-  console.log(`PASS ${receipt.result.name}: result rebuilt from ${receipt.source.assets.length} CMC rows (${receipt.methodVersion})`);
-  console.log(
-    linked
-      ? `     rows and token data match data/inputs.json ${receipt.inputsSha256.slice(0, 12)}`
-      : `     inputs ${receipt.inputsSha256.slice(0, 12)} not available locally, so the link to the full snapshot was not checked`,
-  );
+  const rows = receipt.source.assets.length;
+  if (linked) {
+    console.log(`PASS ${receipt.result.name}: result rebuilt from ${rows} CMC rows (${receipt.methodVersion})`);
+    console.log(`     rows and token data match data/inputs.json ${receipt.inputsSha256.slice(0, 12)}`);
+  } else {
+    console.log(`CONSISTENT ${receipt.result.name}: result follows from the ${rows} rows in this file (${receipt.methodVersion})`);
+    console.log(`     not linked: run this inside a clone of the repo so data/inputs.json can confirm the rows came from CMC`);
+  }
 } else {
   const snapshotText = read("data/snapshot.json");
   const problems = replay(read("data/inputs.json"), snapshotText, read("data/history.json"));

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { METHOD_VERSION } from "./checks";
-import type { AssetRow } from "./rows";
+import { type AssetRow, assetRowProblem } from "./rows";
 import type { Call } from "./snapshot";
 import type { Token } from "./types";
 
@@ -30,6 +30,7 @@ export type Inputs = {
 export const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
 const isNumberOrNull = (x: unknown) => x === null || (typeof x === "number" && Number.isFinite(x) && x >= 0);
+const TOKEN_NUMBERS = ["price", "circulatingSupply", "totalSupply", "selfReportedCirculatingSupply", "marketCap", "volume24h", "marketPairs"] as const;
 
 export function validateInputs(inputs: Inputs): string[] {
   const problems: string[] = [];
@@ -45,10 +46,22 @@ export function validateInputs(inputs: Inputs): string[] {
   const ids = new Set<number>();
   const slugs = new Set<string>();
   for (const e of inputs.exchanges) {
-    if (ids.has(e.id) || slugs.has(e.slug)) problems.push(`${e.slug} appears twice`);
+    if (!Number.isInteger(e.id) || typeof e.slug !== "string" || typeof e.name !== "string") {
+      problems.push(`exchange ${JSON.stringify(e.slug)} has a malformed id, slug or name`);
+      continue;
+    }
+    const slug = e.slug.toLowerCase();
+    if (ids.has(e.id) || slugs.has(slug)) problems.push(`${e.slug} appears twice`);
     ids.add(e.id);
-    slugs.add(e.slug);
+    slugs.add(slug);
+    if (!Number.isInteger(e.porAuditStatus)) problems.push(`${e.slug} porAuditStatus is not an integer`);
     if (!Array.isArray(e.assets)) problems.push(`${e.slug} has no asset list`);
+    else {
+      const bad = e.assets.map(assetRowProblem).find((p) => p !== null);
+      if (bad) problems.push(`${e.slug} has a malformed row: ${bad}`);
+      const missing = e.assets.find((r) => !inputs.tokens[String(r.currency?.crypto_id)]);
+      if (missing) problems.push(`${e.slug} holds token ${missing.currency?.crypto_id} with no token data`);
+    }
     if (!assetCalls.has(String(e.id))) problems.push(`${e.slug} has no successful assets call in the call log`);
     if (!isNumberOrNull(e.openInterestReported)) problems.push(`${e.slug} open interest is not a non-negative number`);
     if (!isNumberOrNull(e.spotVolumeUsd)) problems.push(`${e.slug} spot volume is not a non-negative number`);
@@ -56,8 +69,21 @@ export function validateInputs(inputs: Inputs): string[] {
   }
   if (assetCalls.size !== ids.size) problems.push(`${assetCalls.size} assets calls logged for ${ids.size} exchanges`);
 
-  for (const [key, t] of Object.entries(inputs.tokens)) {
-    if (String(t.id) !== key) problems.push(`token ${key} is stored under the wrong id`);
+  problems.push(...tokenProblems(inputs.tokens));
+  for (const c of inputs.calls) {
+    if (typeof c.credits !== "number" || !Number.isFinite(c.credits) || c.credits < 0) problems.push(`call ${c.path} has invalid credits`);
+    if (typeof c.errorCode !== "number" && typeof c.errorCode !== "string") problems.push(`call ${c.path} has an invalid error code`);
+  }
+  return problems;
+}
+
+export function tokenProblems(tokens: Record<string, Token>): string[] {
+  const problems: string[] = [];
+  for (const [key, t] of Object.entries(tokens)) {
+    if (String(t?.id) !== key) problems.push(`token ${key} is stored under the wrong id`);
+    const bad = TOKEN_NUMBERS.find((f) => !isNumberOrNull(t?.[f]));
+    if (bad) problems.push(`token ${key} ${bad} is not a non-negative number`);
+    if (!Array.isArray(t?.tags) || t.tags.some((x) => typeof x !== "string")) problems.push(`token ${key} tags are not a list of text`);
   }
   return problems;
 }

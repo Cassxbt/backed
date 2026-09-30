@@ -139,6 +139,11 @@ describe("replay", () => {
     ["an asset list that is not a list", (i: Inputs) => void ((i.exchanges[0] as { assets: unknown }).assets = null)],
     ["negative open interest", (i: Inputs) => void (i.exchanges[0].openInterestReported = -5)],
     ["fewer listed than checked", (i: Inputs) => void (i.exchangesListed = 1)],
+    ["a supply given as text", (i: Inputs) => void ((i.tokens["1"] as unknown as Record<string, unknown>).circulatingSupply = "5")],
+    ["a held token with no token data", (i: Inputs) => void delete i.tokens["2"]],
+    ["credits given as text", (i: Inputs) => void ((i.calls[0] as unknown as Record<string, unknown>).credits = "1")],
+    ["a slug repeated in another case", (i: Inputs) => void i.exchanges.push({ ...i.exchanges[0], id: 99, slug: "ALPHA" })],
+    ["a balance given as text", (i: Inputs) => void ((i.exchanges[0].assets[0] as unknown as Record<string, unknown>).balance = "5")],
   ])("rejects inputs with %s even when rebuilt consistently", (_, edit) => {
     const inputs = fixture();
     edit(inputs);
@@ -192,6 +197,27 @@ describe("receipts", () => {
     const r = JSON.parse(JSON.stringify(makeReceipt(inputs, hash, "alpha")));
     r.source.assets[1].balance = 1;
     expect(replayReceipt(r).problems.length).toBeGreaterThan(0);
+  });
+
+  const clone = () => JSON.parse(JSON.stringify(makeReceipt(inputs, hash, "alpha")));
+
+  it("fails when local inputs exist but the receipt names other inputs", () => {
+    const r = clone();
+    r.inputsSha256 = "f".repeat(64);
+    const check = replayReceipt(r, inputsText);
+    expect(check.linked).toBe(false);
+    expect(check.problems).toContainEqual(expect.stringContaining("local data/inputs.json"));
+  });
+
+  it.each([
+    ["a forged capture time", (r: Record<string, unknown>) => void (r.capturedAt = "2020-01-01T00:00:00.000Z")],
+    ["an extra field", (r: Record<string, unknown>) => void (r.verdict = "insolvent")],
+    ["a token it does not hold", (r: { tokens: Record<string, unknown> }) => void (r.tokens["4"] = token(4))],
+    ["a malformed row", (r: { source: { assets: { balance: unknown }[] } }) => void (r.source.assets[0].balance = "n/a")],
+  ])("rejects a receipt with %s", (_, edit) => {
+    const r = clone();
+    edit(r);
+    expect(replayReceipt(r, inputsText).problems.length).toBeGreaterThan(0);
   });
 
   it("catches a self-consistent forgery once the full inputs are present", () => {

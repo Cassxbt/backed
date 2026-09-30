@@ -4,7 +4,7 @@ import { loadKey } from "./key";
 import { buildSnapshot, historyPoint } from "../src/lib/build";
 import { METHOD_VERSION } from "../src/lib/checks";
 import { type ExchangeSource, type Inputs, sha256, validateInputs } from "../src/lib/inputs";
-import type { AssetRow } from "../src/lib/rows";
+import { type AssetRow, assetRowProblem } from "../src/lib/rows";
 import type { HistoryPoint } from "../src/lib/snapshot";
 import type { Token } from "../src/lib/types";
 
@@ -48,13 +48,8 @@ function amount(x: unknown, what: string): number | null {
 }
 
 function assetRow(r: AssetRow, where: string): AssetRow {
-  const ok =
-    typeof r?.wallet_address === "string" &&
-    typeof r.balance === "number" &&
-    Number.isInteger(r.platform?.crypto_id) &&
-    Number.isInteger(r.currency?.crypto_id) &&
-    (r.currency.price_usd === null || typeof r.currency.price_usd === "number");
-  if (!ok) throw new Error(`${where} has a malformed row: ${JSON.stringify(r).slice(0, 200)}`);
+  const problem = assetRowProblem(r);
+  if (problem) throw new Error(`${where} has a malformed row (${problem}): ${JSON.stringify(r).slice(0, 200)}`);
   return r;
 }
 
@@ -109,6 +104,9 @@ async function main() {
         tags: array<{ slug: string }>(q.tags ?? [], `${q.symbol} tags`).map((t) => t.slug),
       };
     }
+    // A dropped id would otherwise read as "no verified supply" and be flagged, so a gap stops the run instead.
+    const missing = batch.filter((id) => !tokens[String(id)]);
+    if (missing.length > 0) throw new Error(`quotes omitted ${missing.length} held tokens: ${missing.slice(0, 10).join(", ")}`);
   }
 
   const deriv = array<DerivRow>(
