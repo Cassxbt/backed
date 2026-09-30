@@ -5,9 +5,9 @@
 &nbsp;
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Tests](https://img.shields.io/badge/tests-33%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-75%20passing-10b981)
 ![Data](https://img.shields.io/badge/data-CoinMarketCap%20Pro%20API%20·%20Basic%20plan-1f1f23)
-![Replay](https://img.shields.io/badge/replay-71%2F71%20exchanges-10b981)
+![Replay](https://img.shields.io/badge/replay-exact%20rebuild-10b981)
 ![Stack](https://img.shields.io/badge/Next.js%2016%20·%20TypeScript-1f1f23)
 
 ### Exchange reserves, checked against CoinMarketCap's own data.
@@ -22,7 +22,7 @@ Most reserve trackers answer one question: *how much does this exchange hold?* B
 
 Demo video: link added at submission.
 
-LBank reports $556M in reserves; CoinMarketCap has not verified the supply of the tokens behind $542M of it. Coinbase is listed as publishing reserves, yet the API returns no wallets, so Backed refuses to show a number. Then the data is tampered with, and the replay fails. Every frame is the live site or a real command.
+LBank reports $555M in reserves; CoinMarketCap has not verified the supply of the tokens behind $541M of it. Coinbase is listed as publishing reserves, yet the API returns no wallets, so Backed refuses to show a number. Then the data is tampered with, and the replay fails. Every frame is the live site or a real command.
 
 ## Contents
 
@@ -51,7 +51,7 @@ So I treated *"the data behind this figure cannot be confirmed"* as a first-clas
 3. **Join.** `/v2/cryptocurrency/quotes/latest` adds supply, market pairs, volume and tags for every held token, by CoinMarketCap ID.
 4. **Check.** Every holding lands in exactly one bucket: **flagged** (unverified supply, above circulating supply, or thin market), **exempt** (stablecoins and wrapped or staked tokens, not evaluated), or **not flagged**.
 5. **Weigh exposure.** `/v5/exchange/derivatives/list` puts futures open interest beside the disclosed reserves.
-6. **Prove.** Every holding ships in `data/snapshot.json`. `npm run replay` recomputes all 71 exchanges offline; `npm run verify` re-fetches a sample with separate code and fails on any difference.
+6. **Prove.** Every CoinMarketCap response the checks read ships in `data/inputs.json`, and its SHA-256 is recorded in `data/snapshot.json`. `npm run replay` rebuilds the snapshot from those inputs offline and fails unless every field matches exactly. `npm run verify` re-fetches a sample live, recomputes it with separate code, and binds its result to the snapshot's hash. Each exchange page offers a receipt that replays on its own.
 
 ## Judge it in 90 seconds
 
@@ -61,37 +61,41 @@ No key needed for the first two:
 # 1. Open the live evidence for the largest case
 open https://backed-liart.vercel.app/exchange/lbank
 
-# 2. Recompute every exchange from the shipped data, offline
+# 2. Rebuild the snapshot from the captured API responses, offline
 git clone https://github.com/Cassxbt/backed && cd backed && npm install
 npm run replay
-# PASS 71 exchanges replayed from 2026-09-30T18:49:30.173Z (checks-v4)
+# PASS snapshot rebuilt exactly from inputs 86eebf640811: 71 exchanges, 18 without wallets, 111 calls (checks-v5)
 
-# 3. Tamper with it and watch it fail
-node -e "const f='data/snapshot.json',s=require('./'+f);s.exchanges[0].passedUsd+=1e6;require('fs').writeFileSync(f,JSON.stringify(s))"
-npm run replay   # FAIL, exit 1
+# 3. Tamper with any stored result and watch it fail
+node -e "const f='data/snapshot.json',s=require('./'+f);s.exchanges[0].holdings.find(h=>h.exempt).exempt=false;require('fs').writeFileSync(f,JSON.stringify(s))"
+npm run replay   # FAIL, names the field, exit 1
 git checkout data/snapshot.json
+
+# 4. Replay one exchange from its receipt
+curl -sO https://backed-liart.vercel.app/exchange/lbank/receipt.json
+npm run replay -- receipt.json
 ```
 
-With a free CoinMarketCap key, `npm run verify` re-fetches 7 exchanges and recomputes them without the checks module. It exits non-zero if an exchange is missing or any figure differs by more than 1%. At 18:50 UTC it matched this snapshot within 0.14%.
+With a free CoinMarketCap key, `npm run verify` re-fetches 7 exchanges and recomputes them without the checks module. It exits non-zero if an exchange is missing or any figure differs by more than 1%. At 20:53 UTC it matched this snapshot within 0.12%.
 
 ## What it finds
 
-Snapshot of 2026-09-30, 18:47 to 18:49 UTC, method `checks-v4`, 111 calls and 111 credits on the free Basic plan.
+Snapshot of 2026-09-30, 20:50 to 20:53 UTC, method `checks-v5`, 111 calls and 111 credits on the free Basic plan.
 
 | | |
 |---|---|
 | Exchanges with wallet-level reserves in the API | **71**. Another 18 are listed as reporting but return no wallets, including every exchange CoinMarketCap marks as audited |
-| Reported reserves | **$284.4B** |
+| Reported reserves | **$284.2B** |
 | Flagged by the checks | **$2.85B**, 83% of it tokens with unverified supply. The largest single flag is USDZ at Blockfinex, $1.38B |
 | Exempt, not evaluated | **$82.4B** (29%): stablecoins and wrapped or staked tokens |
-| More open interest than disclosed reserves | **33 of 52** exchanges with data: $107.6B of open interest on $17.2B of reserves |
-| Above 10× | **21** exchanges, $79.2B on $2.1B. Ratios are largest where disclosed reserves are small |
-| CoinMarketCap liquidation data | 6 of the 71 exchanges, and 1 of the 33 above 1× |
+| More open interest than disclosed reserves | **33 of 52** exchanges with data: $107.4B of open interest on $17.1B of reserves |
+| Above 10× | **21** exchanges, $78.9B on $2.1B. Ratios are largest where disclosed reserves are small |
+| In CoinMarketCap's latest liquidation list | 6 of the 71 exchanges, and 1 of the 33 above 1×. The list leaves out exchanges without an integrated feed and those with no recent liquidations, so absence proves neither |
 
-- **LBank** reports $556M; 97.5% sits in tokens whose circulating supply CoinMarketCap has not verified. The largest is UMM: 98.9M tokens in one wallet, one market pair, `circulating_supply: 0`.
-- **MEXC** discloses 3.6 times CoinMarketCap's circulating-supply figure for MX. The $452M above it is flagged as a supply discrepancy; the datasets can differ in scope or timing, and ownership cannot be inferred from it.
-- **WEEX** reports $226M of reserves and $11.3B of open interest (50×).
-- **Binance and OKX** have $8.1M and $7.5M flagged, under 0.1% of $173B and $21B, and about a third of each is exempt. Not flagged is not the same as verified.
+- **LBank** reports $555M; 97.5% sits in tokens whose circulating supply CoinMarketCap has not verified. The largest is UMM: 98.9M tokens in one wallet, one market pair, `circulating_supply: 0`.
+- **MEXC** discloses 3.6 times CoinMarketCap's circulating-supply figure for MX. The $451M above it is flagged as a supply discrepancy; the datasets can differ in scope or timing, and ownership cannot be inferred from it.
+- **WEEX** reports $225M of reserves and $11.2B of open interest (50×).
+- **Binance and OKX** have $8.0M and $7.5M flagged, under 0.1% of $173B and $21B, and about a third of each is exempt. Not flagged is not the same as verified.
 
 ## How I integrated CoinMarketCap
 
@@ -104,7 +108,7 @@ Backed has no data of its own. Remove the CoinMarketCap API and there is no wall
 | `GET /v1/exchange/assets` | Wallet-level reserves, the input to every check | 89 |
 | `GET /v2/cryptocurrency/quotes/latest` | `circulating_supply`, `self_reported_circulating_supply`, `num_market_pairs`, tags, volume; 100 tokens per call | 9 |
 | `GET /v5/exchange/derivatives/list` | `open_interest_usd` per exchange | 1 |
-| `GET /v5/derivatives/liquidations/exchange/list/latest` | Which exchanges CoinMarketCap has liquidation data for | 1 |
+| `GET /v5/derivatives/liquidations/exchange/list/latest` | Which exchanges appear in the latest liquidation list | 1 |
 
 Every endpoint works on the free Basic plan, so the live site and every command keep working after event access ends.
 
@@ -142,16 +146,17 @@ flowchart LR
     D["exchange/derivatives/list"]
   end
   subgraph Pipeline["npm run snapshot (fails closed)"]
-    N["normalizeRows: dedupe, conflicts, validation"] --> K["checks: flagged / exempt / not flagged"]
+    I["data/inputs.json (every response the checks read)"] --> N["normalizeRows: dedupe, conflicts, validation"] --> K["checks: flagged / exempt / not flagged"]
   end
   subgraph Proof["Shipped and checked"]
-    S["data/snapshot.json (every holding)"] --> R["npm run replay (offline)"]
-    S --> W["static site"]
-    V["npm run verify (separate code, live)"] --> W
+    S["data/snapshot.json (+ inputs SHA-256)"] --> W["static site + per-exchange receipts"]
+    I --> R["npm run replay: exact rebuild, offline"]
+    S --> R
+    V["npm run verify: separate code, live, bound to snapshot hash"] --> W
   end
-  B --> N
-  Q --> K
-  D --> K
+  B --> I
+  Q --> I
+  D --> I
   K --> S
 ```
 
@@ -161,19 +166,22 @@ The key never reaches the browser: the site is built statically from `data/`.
 
 | Case | What Backed does |
 |---|---|
-| LBank, $556M reported | Flags $542M as unverified supply and shows the CoinMarketCap fields and wallets behind each flag |
-| Binance, $173B reported | Flags $8.1M, marks a third as exempt, and says not flagged is not verified |
+| LBank, $555M reported | Flags $541M as unverified supply and shows the CoinMarketCap fields and wallets behind each flag |
+| Binance, $173B reported | Flags $8.0M, marks a third as exempt, and says not flagged is not verified |
 | Coinbase, Kraken and 16 others | CoinMarketCap lists them as reporting, the API returns no wallets: **no figure is shown** |
-| A request fails during a refresh | The run aborts and nothing is written, so a partial set is never published |
-| A stored total or holding is edited | `npm run replay` fails with the mismatch and exits 1 |
-| Verify runs against a different snapshot | The site drops the verified line |
+| A request fails, or returns a 200 that is not a well-formed CoinMarketCap envelope | The run aborts and nothing is written, so a partial set or an empty body is never published as "no wallets" |
+| Any stored result is edited: a total, a holding's flag or exemption, open interest, the ratio, the exchange list | `npm run replay` rebuilds the snapshot from the inputs, names the first differing fields, and exits 1 |
+| The inputs are edited | The SHA-256 no longer matches the snapshot and replay fails; if the hash is rewritten too, the rebuilt results differ |
+| An unknown method version, an empty or duplicated exchange list, or an exchange with no logged assets call | Replay rejects the inputs before rebuilding |
+| Verify ran against different snapshot bytes | The site drops the verified line |
 
 ## Engineering decisions
 
 - **Exempt is not passing.** Stablecoins and wrapped or staked tokens get their value from redemption, which market data cannot test. They were 29% of reported value; counting them as passing would have made most exchanges look cleaner than the data supports.
-- **Fail closed everywhere.** A failed request, a negative balance or a truncated exchange list stops the snapshot. A verify run that cannot find an exchange fails rather than shrinking its sample.
-- **Zero open interest is missing data.** CoinMarketCap reports exactly 0 for exchanges with billions in derivatives volume, so 0 is treated as no data, and the site says so.
-- **Conflicting balances are counted, not summed.** When one wallet and token come back with two balances, the larger is kept and the conflict is shown.
+- **Fail closed everywhere.** A failed request, a malformed response, a negative balance, or an exchange or derivatives list at its page limit stops the snapshot. A verify run that cannot find an exchange fails rather than shrinking its sample.
+- **Zero open interest is kept but not used.** CoinMarketCap reports exactly 0 for exchanges with billions in derivatives volume. The reported 0 is kept in the inputs and shown as "reported as $0, treated as unavailable"; it never produces a ratio.
+- **Conflicting rows are counted, not summed.** When one wallet and token come back with different balances or prices, the larger balance (then the higher price) is kept whatever order the rows arrive in, and the conflict is shown.
+- **Replay proves derivation, verify tests the source.** Replay shows the published figures are exactly what the method computes from the captured responses; it cannot show those responses are what CoinMarketCap served. That is verify's job, against the live API.
 - **Verify does not share code with the checks.** It reimplements the rules separately, so a bug in `checks.ts` cannot confirm itself.
 - **Never fake a number.** Every figure on the site, in this README and in the demo comes from one snapshot, and the API notes cite the call and time behind each item.
 
@@ -182,7 +190,7 @@ The key never reaches the browser: the site is built statically from `data/`.
 | Capability | Status |
 |---|---|
 | Wallet, supply, open-interest and liquidation data | **Real.** Live CoinMarketCap API, Basic plan |
-| Figures on the site | **Real.** One snapshot, replayable offline |
+| Figures on the site | **Real.** One snapshot, rebuilt exactly from its captured inputs offline |
 | Independent recompute | **Real.** `npm run verify`, 7 exchanges, fails above 1% |
 | Wallet balances checked on-chain | **Not done.** Taken from CoinMarketCap as returned; CoinMarketCap states it does not verify them |
 | Wallets under $100,000 | **Not visible.** CoinMarketCap lists only wallets at or above $100,000 |
@@ -195,37 +203,38 @@ The key never reaches the browser: the site is built statically from `data/`.
 
 It made possible: wallet-level reserves with prices from one endpoint, verified supply next to self-reported supply, and open interest per exchange, all on the Basic plan at 111 credits per full refresh.
 
-Where it got in the way. The [API notes page](https://backed-liart.vercel.app/api-notes) gives the exact call and capture time for each item, computed from `data/snapshot.json` and `data/evidence.json` (`npm run evidence` recaptures them):
+Where it got in the way. The [API notes page](https://backed-liart.vercel.app/api-notes) gives the source of each item: the snapshot, a dated capture in `data/evidence.json` (`npm run evidence` recaptures them), or the documentation. An item whose evidence stops holding drops off the page.
 
 1. Every exchange marked as audited returns no wallets from `exchange/assets`.
 2. Reserve totals count tokens with unverified supply at full price; this is 83% of what Backed flags.
-3. Binance's USDS rows are mapped to crypto_id 33452 (TheStandard USD) instead of 33039 (USDS).
+3. Binance's USDS rows carry crypto_id 33452 (TheStandard USD) at 39 times that token's circulating supply, a possible identity mismatch with USDS (33039).
 4. Reserve rows carry no timestamp, so the documented delay cannot be measured.
-5. 18 of Binance's 30 legacy Bitcoin addresses come back lowercased, which breaks base58 lookups.
-6. Responses contain duplicate rows, and some wallet and token pairs come back with two different balances.
-7. `open_interest_usd` is exactly 0 for exchanges with billions in derivatives volume, and which ones changes between refreshes.
-8. WOO X Pro BTC/USD reports about $12.1 trillion of open interest, with `outlier_detected: false`.
-9. `funding_rate` has no settlement interval.
-10. `market-pairs/latest`, which would give real depth, is not on the Basic plan.
+5. 18 of Binance's 30 legacy Bitcoin addresses come back entirely lowercase, and all 18 fail the Base58Check checksum as returned.
+6. Responses contain duplicate rows, and some wallet and token pairs come back with different balances or prices.
+7. `open_interest_usd` is exactly 0 for 11 derivatives exchanges, including one with $8.1B of 24h derivatives volume.
+8. WOO X Pro BTC/USD reports $13.9 trillion of open interest, 4.8 times CoinMarketCap's own total market cap, with `outlier_detected: false`.
+9. 188 of 190 BTC derivatives pairs carry `funding_rate`, and no field gives its interval.
+10. Both market-pair depth endpoints return HTTP 403, error 1006, on a Basic key.
 
 ## Run it
 
 ```bash
 npm install
-npm test            # 33 tests, including replay and tamper cases
-npm run replay      # offline, no key
+npm test            # 75 tests, including replay, receipt and tamper cases
+npm run replay      # offline, no key; npm run replay -- receipt.json for one exchange
 echo "CMC_PRO_API_KEY=your-key" > .env.local
-npm run snapshot    # about 2.5 minutes, 111 credits; writes nothing on any failure
+npm run snapshot    # about 3 minutes, 111 credits; writes nothing on any failure
 npm run verify      # about 20 credits
 npm run dev
 ```
 
 ```
-scripts/cmc.ts        API client: rate limit, timeouts, retries, call log
-scripts/snapshot.ts   pipeline: map → info → assets → quotes → derivatives
+scripts/cmc.ts        API client: strict envelope, rate limit, timeouts, retries, call log
+scripts/snapshot.ts   capture: map → info → assets → quotes → derivatives → data/inputs.json
 scripts/verify.ts     live recompute with separate code
-scripts/replay.ts     offline recompute of every exchange
+scripts/replay.ts     exact offline rebuild of the snapshot, or of one receipt
 scripts/evidence.ts   captures the API-note reproductions
+src/lib/build.ts      inputs → snapshot, a pure function
 src/lib/checks.ts     the checks, pure functions
 src/lib/rows.ts       duplicate and conflict handling, input validation
 src/app/              overview, exchange pages, method, API notes
