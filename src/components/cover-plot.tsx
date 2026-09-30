@@ -10,7 +10,7 @@ export type CoverRow = {
   cover: number;
   openInterest: number;
   reserves: number;
-  reportsLiquidations: boolean;
+  inLiquidationResponse: boolean;
 };
 
 const MIN = 0.01;
@@ -81,8 +81,8 @@ export function CoverPlot({ rows }: { rows: CoverRow[] }) {
                         <span className="text-right text-foreground">{usd(r.openInterest)}</span>
                         <span>Disclosed reserves</span>
                         <span className="text-right text-foreground">{usd(r.reserves)}</span>
-                        <span>Liquidations to CMC</span>
-                        <span className="text-right text-foreground">{r.reportsLiquidations ? "Reported" : "Not reported"}</span>
+                        <span>In CMC liquidation list</span>
+                        <span className="text-right text-foreground">{r.inLiquidationResponse ? "Yes" : "No"}</span>
                       </span>
                     </span>
                   )}

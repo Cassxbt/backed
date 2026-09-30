@@ -82,9 +82,15 @@ describe("classifyHolding", () => {
     expect(classifyHolding(holding({}), token({})).exempt).toBe(false);
   });
 
-  it("treats a missing market-pair count as unknown, not thin", () => {
+  it("treats a missing market-pair count as unknown, not thin, and says the check was not run", () => {
     const r = classifyHolding(holding({}), token({ marketPairs: null }));
     expect(r.flag).toBeNull();
+    expect(r.notEvaluated).toEqual(["thin"]);
+  });
+
+  it("lists the checks an exempt holding skipped", () => {
+    expect(classifyHolding(holding({}), token({ tags: ["stablecoin"] })).notEvaluated).toEqual(["excess", "thin"]);
+    expect(classifyHolding(holding({}), token({})).notEvaluated).toEqual([]);
   });
 
   it("treats CMC's rehypothecated-crypto tag as redeemable", () => {
@@ -120,8 +126,8 @@ describe("checkExchange", () => {
     name: "Demo",
     porAuditStatus: 0,
     spotVolumeUsd: 1e6,
-    openInterestUsd: 5000,
-    reportsLiquidations: false,
+    openInterestReported: 5000,
+    inLiquidationResponse: false,
     duplicateRowsRemoved: 0,
     conflictingRows: 0,
     walletCount: 3,
@@ -149,7 +155,15 @@ describe("checkExchange", () => {
   });
 
   it("returns null cover when open interest is unknown", () => {
-    expect(checkExchange({ ...input, openInterestUsd: null }, tokens).cover).toBeNull();
+    expect(checkExchange({ ...input, openInterestReported: null }, tokens).cover).toBeNull();
+  });
+
+  it("keeps a reported zero open interest as a fact without a ratio", () => {
+    const r = checkExchange({ ...input, openInterestReported: 0 }, tokens);
+    expect(r.openInterestReportedZero).toBe(true);
+    expect(r.openInterestUsd).toBeNull();
+    expect(r.cover).toBeNull();
+    expect(checkExchange({ ...input, openInterestReported: null }, tokens).openInterestReportedZero).toBe(false);
   });
 
   it("passes distinct wallet count through and lists distinct chains", () => {

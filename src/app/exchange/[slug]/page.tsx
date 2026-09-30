@@ -97,9 +97,13 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
               <dt className="text-muted-foreground">Open interest ÷ reserves</dt>
               <dd className="text-right font-mono tabular-nums">{ratio(e.cover)}</dd>
               <dt className="text-muted-foreground">Open interest</dt>
-              <dd className="text-right font-mono tabular-nums">{usd(e.openInterestUsd)}</dd>
-              <dt className="text-muted-foreground">CMC liquidation data</dt>
-              <dd className="text-right">{e.reportsLiquidations ? "Yes" : "None"}</dd>
+              {e.openInterestReportedZero ? (
+                <dd className="text-right">Reported as $0, treated as unavailable</dd>
+              ) : (
+                <dd className="text-right font-mono tabular-nums">{usd(e.openInterestUsd)}</dd>
+              )}
+              <dt className="text-muted-foreground">In CMC liquidation list</dt>
+              <dd className="text-right">{e.inLiquidationResponse ? "Yes" : "No"}</dd>
               <dt className="text-muted-foreground">Audit flag</dt>
               <dd className="text-right">{e.porAuditStatus === 1 ? "Yes" : "No"}</dd>
               <dt className="text-muted-foreground">Duplicate rows dropped</dt>
@@ -129,7 +133,7 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
             {shown.length === e.holdings.length
               ? `All ${e.holdings.length} holdings.`
               : `${shown.length} of ${e.holdings.length} holdings: the ${SHOWN} largest and every smaller flagged holding over $10K.`}{" "}
-            All {e.holdings.length} are in <code className="font-mono text-xs">data/snapshot.json</code> and replay offline.
+            The raw rows behind all {e.holdings.length} are in this exchange&apos;s receipt below.
           </p>
         }
       >
@@ -156,7 +160,7 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
                   <TableCell className="text-right font-mono text-sm tabular-nums">{usd(h.usd)}</TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{pct(share(h.usd))}</TableCell>
                   <TableCell className="text-sm">
-                    <FlagBadge flag={h.flag} exempt={h.exempt} />
+                    <FlagBadge flag={h.flag} exempt={h.exempt} notEvaluated={h.notEvaluated} />
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{pct(h.shareOfCirculating)}</TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">{days(h.daysOfVolume)}</TableCell>
@@ -232,11 +236,29 @@ export default async function ExchangePage({ params }: PageProps<"/exchange/[slu
         }
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          <pre className="overflow-x-auto rounded-xl border bg-card p-5 font-mono text-xs leading-relaxed">
-            {`$ curl -H "X-CMC_PRO_API_KEY: $KEY" \\
+          <div className="grid content-start gap-4">
+            <pre className="overflow-x-auto rounded-xl border bg-card p-5 font-mono text-xs leading-relaxed">
+              {`$ curl -H "X-CMC_PRO_API_KEY: $KEY" \\
   "https://pro-api.coinmarketcap.com/v1/exchange/assets?id=${e.id}"`}
-          </pre>
-          <ul className="grid min-w-0 grid-cols-1 content-start gap-px overflow-hidden rounded-xl border bg-border font-mono text-xs">
+            </pre>
+            <div className="rounded-xl border bg-card p-5 text-sm">
+              <p className="font-medium">Receipt</p>
+              <p className="mt-2 text-pretty text-muted-foreground">
+                The raw CoinMarketCap rows and token data this page was computed from, with the published result. Replay
+                rebuilds the result from the rows offline and fails on any difference.
+              </p>
+              <pre className="mt-3 overflow-x-auto font-mono text-xs">{`$ npm run replay -- backed-${e.slug}-receipt.json`}</pre>
+              <p className="mt-3 font-mono text-xs text-muted-foreground">inputs sha256 {snapshot.inputsSha256.slice(0, 16)}…</p>
+              <a
+                href={`/exchange/${e.slug}/receipt.json`}
+                download
+                className="mt-4 inline-flex font-medium underline decoration-border underline-offset-4 hover:decoration-foreground"
+              >
+                Download receipt
+              </a>
+            </div>
+          </div>
+          <ul className="grid min-w-0 grid-cols-1 content-start gap-px self-start overflow-hidden rounded-xl border bg-border font-mono text-xs">
             {calls.map((c, i) => (
               <li key={i} className="flex min-w-0 justify-between gap-4 bg-card px-4 py-2.5">
                 <span className="min-w-0 truncate">

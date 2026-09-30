@@ -29,7 +29,7 @@ export default function Home() {
       cover: e.cover!,
       openInterest: e.openInterestUsd!,
       reserves: e.reportedUsd,
-      reportsLiquidations: e.reportsLiquidations,
+      inLiquidationResponse: e.inLiquidationResponse,
     }));
 
   const flaggedRows = xs
@@ -177,9 +177,11 @@ export default function Home() {
           <p>
             {s.overTen.count} carry more than ten times, {usd(s.overTen.openInterest)} on {usd(s.overTen.reserves)}. Open
             interest and wallet disclosures cover different things, so the ratio shows exposure, not a shortfall, and it is
-            largest where disclosed reserves are small. CoinMarketCap has liquidation data for{" "}
-            {s.overOne.withLiquidationData} of these {s.overOne.count} exchanges. Where it reports open interest of exactly
-            zero, Backed treats it as missing. The heavier line marks 1×.
+            largest where disclosed reserves are small. {s.overOne.inLiquidationResponse} of these {s.overOne.count}{" "}
+            {s.overOne.inLiquidationResponse === 1 ? "appears" : "appear"} in
+            CoinMarketCap&apos;s latest liquidation list, which leaves out exchanges without an integrated feed and those with no
+            recent liquidations. {s.openInterestReportedZero} reserve-reporting exchanges have open interest reported as exactly
+            zero; Backed treats that as unavailable and shows no ratio. The heavier line marks 1×.
           </p>
         }
       >
@@ -302,8 +304,10 @@ $ curl ".../v2/cryptocurrency/quotes/latest?id=${flag.cryptoId}"
             ))}
             <div className="space-y-2 bg-card px-4 py-3 text-sm text-pretty text-muted-foreground">
               <p>
-                <code className="font-mono text-xs">npm run replay</code> recomputes all {xs.length} exchanges from the
-                shipped data, offline and without a key, and fails on any mismatch.
+                <code className="font-mono text-xs">npm run replay</code> rebuilds the whole snapshot from the captured
+                CoinMarketCap responses (<code className="font-mono text-xs">data/inputs.json</code>, sha256{" "}
+                {snapshot.inputsSha256.slice(0, 12)}), offline and without a key, and fails unless every field matches
+                exactly. Each exchange page has a receipt that replays on its own.
               </p>
               <p>
                 {verification ? (

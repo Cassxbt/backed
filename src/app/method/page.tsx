@@ -100,15 +100,18 @@ export default function MethodPage() {
         </li>
         <li>
           <code>/v5/exchange/derivatives/list</code> adds open interest, and{" "}
-          <code>/v5/derivatives/liquidations/exchange/list/latest</code> shows which exchanges CoinMarketCap has
-          liquidation data for.
+          <code>/v5/derivatives/liquidations/exchange/list/latest</code> shows which exchanges appear in CoinMarketCap&apos;s
+          latest liquidation list. The list leaves out exchanges without an integrated feed and those with no recent
+          liquidations, so absence is not evidence of either. Open interest reported as exactly 0 is kept in the inputs but
+          gives no ratio.
         </li>
       </ol>
       <p className="mt-4 text-sm text-pretty text-muted-foreground">
         The current snapshot ran from {utc(snapshot.startedAt)} to {utc(snapshot.generatedAt)} with {snapshot.calls.length}{" "}
-        calls and {snapshot.credits} credits on the free Basic plan, method {METHOD_VERSION}. Every holding is shipped in{" "}
-        <code>data/snapshot.json</code>; <code>npm run replay</code> recomputes every exchange from it offline and fails on
-        any mismatch.
+        calls and {snapshot.credits} credits on the free Basic plan, method {METHOD_VERSION}. Every CoinMarketCap response the
+        checks read is kept in <code>data/inputs.json</code>, whose SHA-256 is recorded in the snapshot.{" "}
+        <code>npm run replay</code> rebuilds <code>data/snapshot.json</code> from it offline and fails unless every field
+        matches exactly.
       </p>
     </article>
   );

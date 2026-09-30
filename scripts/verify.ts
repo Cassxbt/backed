@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { Cmc } from "./cmc";
 import { loadKey } from "./key";
@@ -15,19 +16,23 @@ const FLOOR_USD = 1_000_000;
 type Row = { wallet_address: string; balance: number; platform: { crypto_id: number }; currency: { crypto_id: number; price_usd: number | null } };
 type Quote = { circulating_supply: number | null; num_market_pairs: number | null; tags: { slug: string }[] | null };
 
+// Same rule as the snapshot, written separately: identical rows collapse, and for conflicting rows the larger balance wins,
+// then the higher price, with a missing price lowest.
 function dedupe(raw: Row[]) {
   const kept = new Map<string, Row>();
   for (const r of raw) {
     const address = /^0x[0-9a-f]{40}$/i.test(r.wallet_address) ? r.wallet_address.toLowerCase() : r.wallet_address;
     const key = [address, r.platform.crypto_id, r.currency.crypto_id].join("|");
     const prev = kept.get(key);
-    if (!prev || r.balance > prev.balance) kept.set(key, r);
+    const price = (x: Row) => x.currency.price_usd ?? -1;
+    if (!prev || r.balance > prev.balance || (r.balance === prev.balance && price(r) > price(prev))) kept.set(key, r);
   }
   return [...kept.values()];
 }
 
 async function main() {
-  const snapshot: Snapshot = JSON.parse(readFileSync("data/snapshot.json", "utf8"));
+  const snapshotText = readFileSync("data/snapshot.json", "utf8");
+  const snapshot: Snapshot = JSON.parse(snapshotText);
   const cmc = new Cmc(loadKey());
   const results = [];
   const problems: string[] = [];
@@ -39,7 +44,9 @@ async function main() {
       continue;
     }
 
-    const rows = dedupe(await cmc.get<Row[]>("/v1/exchange/assets", { id: saved.id }));
+    const raw = await cmc.get<Row[]>("/v1/exchange/assets", { id: saved.id });
+    if (!Array.isArray(raw)) throw new Error(`${slug} assets is not a list`);
+    const rows = dedupe(raw);
     const balance = new Map<number, number>();
     const value = new Map<number, number>();
     for (const r of rows) {
@@ -87,7 +94,20 @@ async function main() {
   writeFileSync(
     "data/verify.json",
     JSON.stringify(
-      { at: new Date().toISOString(), snapshotAt: snapshot.generatedAt, methodVersion: METHOD_VERSION, tolerance: TOLERANCE, floorUsd: FLOOR_USD, passed, maxDiff, problems, credits: cmc.credits, results },
+      {
+        at: new Date().toISOString(),
+        snapshotAt: snapshot.generatedAt,
+        snapshotSha256: createHash("sha256").update(snapshotText).digest("hex"),
+        inputsSha256: snapshot.inputsSha256,
+        methodVersion: METHOD_VERSION,
+        tolerance: TOLERANCE,
+        floorUsd: FLOOR_USD,
+        passed,
+        maxDiff,
+        problems,
+        credits: cmc.credits,
+        results,
+      },
       null,
       2,
     ),

@@ -6,7 +6,7 @@ export type CardExchange = Buckets & {
   slug: string;
   name: string;
   cover: number | null;
-  reportsLiquidations: boolean;
+  inLiquidationResponse: boolean;
   wallets: number;
 };
 
@@ -53,8 +53,8 @@ export function ExchangeCard({ e, link = true }: { e: CardExchange; link?: boole
           <dd className="font-mono tabular-nums">{ratio(e.cover)}</dd>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <dt className="pl-4 text-muted-foreground">CMC liquidation data</dt>
-          <dd>{e.reportsLiquidations ? "Yes" : "None"}</dd>
+          <dt className="pl-4 text-muted-foreground">In CMC liquidation list</dt>
+          <dd>{e.inLiquidationResponse ? "Yes" : "No"}</dd>
         </div>
       </dl>
 

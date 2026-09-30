@@ -1,17 +1,24 @@
 import "server-only";
-import snapshotJson from "../../data/snapshot.json";
-import historyJson from "../../data/history.json";
-import verifyJson from "../../data/verify.json";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CardExchange, CardRefusal } from "@/components/exchange-card";
 import { METHOD_VERSION } from "./checks";
+import { sha256 } from "./inputs";
 import type { HistoryPoint, Snapshot, SnapshotExchange } from "./snapshot";
 
-export const snapshot = snapshotJson as unknown as Snapshot;
-export const history = historyJson as unknown as HistoryPoint[];
+// Read as text rather than imported: the bundler's JSON import rounds some floats, which would change figures by
+// fractions of a cent and break the hash that ties this page to what replay and verify checked.
+const read = (name: string) => readFileSync(join(process.cwd(), "data", name), "utf8");
+const snapshotText = read("snapshot.json");
+
+export const snapshot: Snapshot = JSON.parse(snapshotText);
+export const history: HistoryPoint[] = JSON.parse(read("history.json"));
+export const snapshotSha256 = sha256(snapshotText);
 
 type Verification = {
   at: string;
   snapshotAt: string;
+  snapshotSha256: string;
   methodVersion: string;
   tolerance: number;
   passed: boolean;
@@ -19,11 +26,11 @@ type Verification = {
   results: { slug: string }[];
 };
 
-const verify = verifyJson as unknown as Partial<Verification>;
+const verify: Partial<Verification> = JSON.parse(read("verify.json"));
 
-// A verification only counts if it ran against this exact snapshot and method.
+// A verification only counts if it ran against these exact snapshot bytes and this method.
 export const verification =
-  verify.passed === true && verify.snapshotAt === snapshot.generatedAt && verify.methodVersion === METHOD_VERSION
+  verify.passed === true && verify.snapshotSha256 === snapshotSha256 && verify.methodVersion === METHOD_VERSION
     ? (verify as Verification)
     : null;
 
@@ -48,9 +55,9 @@ export function summary() {
     withCover: withCover.length,
     overOne: {
       count: overOne.length,
-      withLiquidationData: overOne.filter((e) => e.reportsLiquidations).length,
+      inLiquidationResponse: overOne.filter((e) => e.inLiquidationResponse).length,
     },
-    liquidationData: xs.filter((e) => e.reportsLiquidations).length,
+    openInterestReportedZero: xs.filter((e) => e.openInterestReportedZero).length,
     largestFlag: largestFlag(),
     overTen: {
       count: overTen.length,
@@ -81,7 +88,7 @@ export function toCard(e: SnapshotExchange): CardExchange {
     thin: e.thinUsd,
     excess: e.excessUsd,
     cover: e.cover,
-    reportsLiquidations: e.reportsLiquidations,
+    inLiquidationResponse: e.inLiquidationResponse,
     wallets: e.walletCount,
   };
 }

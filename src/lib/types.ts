@@ -27,8 +27,8 @@ export type ExchangeInput = {
   name: string;
   porAuditStatus: number;
   spotVolumeUsd: number | null;
-  openInterestUsd: number | null;
-  reportsLiquidations: boolean;
+  openInterestReported: number | null;
+  inLiquidationResponse: boolean;
   holdings: Holding[];
   walletCount: number;
   duplicateRowsRemoved: number;
@@ -37,10 +37,13 @@ export type ExchangeInput = {
 
 export type Flag = "unverified" | "thin" | "excess";
 
+export type Check = "excess" | "thin";
+
 export type HoldingResult = Holding & {
   flag: Flag | null;
   flaggedUsd: number;
   exempt: boolean;
+  notEvaluated: Check[];
   shareOfCirculating: number | null;
   shareOfTotal: number | null;
   daysOfVolume: number | null;
@@ -63,8 +66,9 @@ export type ExchangeResult = {
   porAuditStatus: number;
   spotVolumeUsd: number | null;
   openInterestUsd: number | null;
+  openInterestReportedZero: boolean;
   cover: number | null;
-  reportsLiquidations: boolean;
+  inLiquidationResponse: boolean;
   duplicateRowsRemoved: number;
   conflictingRows: number;
   holdings: HoldingResult[];

@@ -1,6 +1,6 @@
 import type { ExchangeInput, ExchangeResult, Holding, HoldingResult, Token } from "./types";
 
-export const METHOD_VERSION = "checks-v4";
+export const METHOD_VERSION = "checks-v5";
 export const THIN_MARKET_PAIRS = 2;
 
 const REDEEMABLE_TAGS = ["stablecoin", "wrapped-tokens", "liquid-staking-derivatives", "rehypothecated-crypto"];
@@ -23,6 +23,7 @@ export function classifyHolding(h: Holding, token: Token | undefined): HoldingRe
   let flag: HoldingResult["flag"] = null;
   let flaggedUsd = 0;
   let exempt = false;
+  const notEvaluated: HoldingResult["notEvaluated"] = [];
 
   if (!token || circ <= 0) {
     flag = "unverified";
@@ -30,15 +31,18 @@ export function classifyHolding(h: Holding, token: Token | undefined): HoldingRe
   } else if (redeemable) {
     // Value depends on redemption, which market data cannot test, and CMC supply for multi-chain redeemables is incomplete.
     exempt = true;
+    notEvaluated.push("excess", "thin");
   } else if (token.marketPairs != null && token.marketPairs <= THIN_MARKET_PAIRS) {
     flag = "thin";
     flaggedUsd = h.usd;
   } else if (h.balance > circ) {
     flag = "excess";
     flaggedUsd = (h.balance - circ) * unitPrice;
+  } else if (token.marketPairs == null) {
+    notEvaluated.push("thin");
   }
 
-  return { ...h, flag, flaggedUsd, exempt, shareOfCirculating, shareOfTotal, daysOfVolume, redeemable };
+  return { ...h, flag, flaggedUsd, exempt, notEvaluated, shareOfCirculating, shareOfTotal, daysOfVolume, redeemable };
 }
 
 export function checkExchange(input: ExchangeInput, tokens: Map<number, Token>): ExchangeResult {
@@ -52,6 +56,8 @@ export function checkExchange(input: ExchangeInput, tokens: Map<number, Token>):
   const reportedUsd = sum((h) => h.usd);
   const exemptUsd = sum((h) => (h.exempt ? h.usd : 0));
   const passedUsd = reportedUsd - exemptUsd - sum((h) => h.flaggedUsd);
+  // CMC reports exactly 0 for exchanges with billions in derivatives volume, so a reported 0 is kept as a fact but gives no ratio.
+  const openInterestUsd = input.openInterestReported || null;
 
   return {
     id: input.id,
@@ -68,9 +74,10 @@ export function checkExchange(input: ExchangeInput, tokens: Map<number, Token>):
     chains: [...new Set(holdings.flatMap((h) => h.chains))].sort(),
     porAuditStatus: input.porAuditStatus,
     spotVolumeUsd: input.spotVolumeUsd,
-    openInterestUsd: input.openInterestUsd,
-    cover: input.openInterestUsd != null && reportedUsd > 0 ? input.openInterestUsd / reportedUsd : null,
-    reportsLiquidations: input.reportsLiquidations,
+    openInterestUsd,
+    openInterestReportedZero: input.openInterestReported === 0,
+    cover: openInterestUsd != null && reportedUsd > 0 ? openInterestUsd / reportedUsd : null,
+    inLiquidationResponse: input.inLiquidationResponse,
     duplicateRowsRemoved: input.duplicateRowsRemoved,
     conflictingRows: input.conflictingRows,
     holdings,

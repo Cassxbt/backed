@@ -19,6 +19,7 @@ export type Call = {
 
 export type Snapshot = {
   methodVersion: string;
+  inputsSha256: string;
   startedAt: string;
   generatedAt: string;
   credits: number;

@@ -9,7 +9,7 @@ export function SourceLimits() {
     "Balances may be delayed, and reserve rows carry no timestamp, so balances and prices are not from one moment.",
     "Exchanges supply the wallet data. CoinMarketCap states that it does not verify it.",
     `${snapshot.noWallets.length} exchanges listed as reporting return no wallets and are not scored.`,
-    `Duplicate rows are dropped. ${conflicts} wallet-token pairs came back with two balances; the larger is kept and counted.`,
+    `Duplicate rows are dropped. ${conflicts} wallet-token pairs came back with different balances or prices; the larger balance, then the higher price, is kept and counted.`,
   ];
 
   return (
