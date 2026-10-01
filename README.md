@@ -14,15 +14,15 @@
 
 Most reserve trackers answer one question: *how much does this exchange hold?* Backed answers the harder one: **how much of that figure can CoinMarketCap's own data confirm?** It joins every wallet an exchange discloses through the **CoinMarketCap API** with CoinMarketCap's supply, market and derivatives data, flags what that data cannot confirm, and shows no figure at all where there are no wallets to check.
 
-**[ Live ↗ ](https://backed-liart.vercel.app)** · **[ Judge it in 90 seconds ↗ ](#judge-it-in-90-seconds)** · **[ API feedback ↗ ](https://backed-liart.vercel.app/api-notes)** · **[ Method ↗ ](https://backed-liart.vercel.app/method)**
+**[ Live ↗ ](https://backed-liart.vercel.app)** · **[ Demo video ↗ ](https://youtu.be/CFoywNgtyeo)** · **[ Judge it in 90 seconds ↗ ](#judge-it-in-90-seconds)** · **[ API feedback ↗ ](https://backed-liart.vercel.app/api-notes)** · **[ Method ↗ ](https://backed-liart.vercel.app/method)**
 
 </div>
 
 ## ▶ Demo
 
-Demo video: link added at submission.
+**[Watch the 2½-minute demo ↗](https://youtu.be/CFoywNgtyeo)**
 
-LBank reports $559M in reserves; CoinMarketCap has not verified the supply of the tokens behind $545M of it. Coinbase is listed as publishing reserves, yet the API returns no wallets, so Backed refuses to show a number. Then the data is tampered with, and the replay fails. Every frame is the live site or a real command.
+LBank reports $559M in reserves; CoinMarketCap has not verified the supply of the tokens behind $545M of it. Coinbase is listed as publishing reserves, yet the API returns no wallets, so Backed refuses to show a number. Then the data is tampered with, and the replay fails. Every product shot is the live site, and every terminal line is real command output.
 
 ## Contents
 
